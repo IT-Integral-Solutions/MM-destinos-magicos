@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MM Destinos Mágicos — Entregable 02</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;0,900;1,300;1,400;1,600;1,700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+:root{
+  --r:#C8102E;--k:#0E0E0E;--w:#FAFAF8;--c:#F2EEE8;--n:#1B2A4A;
+  --g:#1A7A40;--d:#B8860B;--mid:#6B6560;--line:#DDD9D2;
+}
+body{font-family:'Inter',sans-serif;background:var(--w);color:var(--k);overflow-x:hidden}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:200;height:56px;background:rgba(14,14,14,.97);backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:space-between;padding:0 44px;border-bottom:1px solid rgba(255,255,255,.06)}
+.nav-logo{display:flex;align-items:center;gap:13px}
+.nav-logo-mark{height:28px;padding:0 11px;border:1px dashed rgba(255,255,255,.22);border-radius:4px;font-family:'Cormorant Garamond',serif;font-size:10px;letter-spacing:.14em;color:rgba(255,255,255,.32);display:flex;align-items:center}
+.nav-name{font-size:12px;font-weight:600;color:#fff;letter-spacing:.03em}
+.nav-name small{display:block;font-size:9px;font-weight:400;color:rgba(255,255,255,.35);letter-spacing:.15em;text-transform:uppercase;margin-top:1px}
+.nav-pill{font-size:9.5px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.38);border:1px solid rgba(255,255,255,.1);padding:5px 14px;border-radius:20px}
+
+/* COVER */
+.cover{min-height:100vh;background:var(--k);display:flex;flex-direction:column;justify-content:flex-end;position:relative;overflow:hidden;padding-top:56px}
+.cover-noise{position:absolute;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");pointer-events:none}
+.cover-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:80px 80px;pointer-events:none}
+.cover-accent{position:absolute;top:56px;right:0;width:50%;height:55%;background:var(--r);opacity:.055;clip-path:polygon(30% 0%,100% 0%,100% 100%,0% 100%)}
+.cover-vline{position:absolute;left:44px;top:0;bottom:0;width:1px;background:rgba(255,255,255,.05)}
+.cover-body{position:relative;z-index:2;padding:0 44px 80px}
+.cover-eyebrow{font-size:9.5px;font-weight:700;letter-spacing:.3em;text-transform:uppercase;color:var(--r);margin-bottom:36px;display:flex;align-items:center;gap:14px}
+.cover-eyebrow::before{content:'';display:block;width:28px;height:1px;background:var(--r)}
+.cover-h1{font-family:'Cormorant Garamond',serif;font-size:clamp(68px,9vw,120px);font-weight:300;color:#fff;line-height:.9;letter-spacing:-.025em;margin-bottom:28px}
+.cover-h1 strong{font-weight:700;display:block;color:#fff}
+.cover-h1 em{font-style:italic;color:rgba(255,255,255,.45);font-weight:300}
+.cover-tagline{font-size:15px;font-weight:300;color:rgba(255,255,255,.45);max-width:440px;line-height:1.75;margin-bottom:60px}
+.cover-meta{display:flex;gap:0;border-top:1px solid rgba(255,255,255,.08);padding-top:28px;flex-wrap:wrap}
+.cmi{padding-right:36px;margin-right:36px;border-right:1px solid rgba(255,255,255,.07)}
+.cmi:last-child{border-right:none}
+.cmi-l{font-size:8px;font-weight:700;letter-spacing:.25em;text-transform:uppercase;color:rgba(255,255,255,.25);margin-bottom:6px}
+.cmi-v{font-size:13px;font-weight:500;color:rgba(255,255,255,.75)}
+.cover-scroll{position:absolute;bottom:28px;right:44px;font-size:9px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.18);display:flex;align-items:center;gap:10px;writing-mode:vertical-rl}
+
+/* CHAPTER */
+.ch{display:flex;align-items:center;gap:18px;padding:14px 44px;background:var(--w);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.ch-n{font-family:'Cormorant Garamond',serif;font-size:10px;font-weight:700;letter-spacing:.35em;text-transform:uppercase;color:var(--r);flex-shrink:0}
+.ch-t{font-size:10px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--k)}
+.ch-line{flex:1;height:1px;background:var(--line)}
+
+/* INTRO GRID */
+.intro{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:start;padding:88px 44px 68px;max-width:1200px;margin:0 auto}
+@media(max-width:800px){.intro{grid-template-columns:1fr;gap:28px;padding:56px 28px 44px}}
+.intro-overline{font-size:9px;font-weight:700;letter-spacing:.28em;text-transform:uppercase;color:var(--r);margin-bottom:16px}
+.intro-h{font-family:'Cormorant Garamond',serif;font-size:clamp(38px,4vw,56px);font-weight:600;line-height:.95;color:var(--k);letter-spacing:-.015em}
+.intro-h em{font-style:italic;font-weight:300;color:var(--mid)}
+.intro-p{font-size:14.5px;color:var(--mid);line-height:1.82;margin-bottom:22px}
+.intro-p strong{color:var(--k);font-weight:600}
+
+/* STRIP */
+.strip{background:var(--w);display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+@media(max-width:800px){.strip{grid-template-columns:1fr 1fr}}
+.strip-card{padding:40px 32px;border-right:1px solid var(--line);transition:background .14s}
+.strip-card:last-child{border-right:none}
+.strip-card:hover{background:var(--c)}
+.sc-ico{font-size:20px;margin-bottom:18px}
+.sc-t{font-size:14px;font-weight:700;color:var(--k);margin-bottom:8px;line-height:1.3}
+.sc-d{font-size:13px;color:var(--mid);line-height:1.72}
+
+/* PIPELINE */
+.pipeline-wrap{background:var(--c);padding:80px 44px}
+.pipeline-head{max-width:1200px;margin:0 auto 52px}
+.pipeline-ov{font-size:9px;font-weight:700;letter-spacing:.26em;text-transform:uppercase;color:var(--r);margin-bottom:12px}
+.pipeline-h{font-family:'Cormorant Garamond',serif;font-size:clamp(32px,3.5vw,48px);font-weight:600;color:var(--k);line-height:1.0}
+.pipeline-h em{font-style:italic;font-weight:300;color:var(--mid)}
+.pipeline{display:grid;grid-template-columns:repeat(4,1fr);max-width:1200px;margin:0 auto}
+@media(max-width:900px){.pipeline{grid-template-columns:1fr 1fr;gap:2px}}
+.pipe-item{background:var(--w);padding:36px 28px;border:1px solid var(--line);margin-right:-1px;position:relative;transition:background .15s}
+.pipe-item:hover{background:#fff;z-index:1}
+.pipe-item:last-child{margin-right:0}
+.pipe-arrow{position:absolute;right:-14px;top:36px;width:27px;height:27px;border-radius:50%;background:var(--r);display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;z-index:3;box-shadow:0 2px 10px rgba(200,16,46,.4)}
+@media(max-width:900px){.pipe-arrow{display:none}}
+.pipe-n{font-family:'Cormorant Garamond',serif;font-size:56px;font-weight:700;line-height:1;margin-bottom:14px;color:var(--line)}
+.pipe-stage{font-size:8.5px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--r);margin-bottom:6px}
+.pipe-t{font-size:15px;font-weight:700;color:var(--k);margin-bottom:8px}
+.pipe-d{font-size:12.5px;color:var(--mid);line-height:1.7}
+
+/* TOOL BLOCK */
+.tool{padding:80px 44px 0;max-width:1200px;margin:0 auto}
+.tool-hd{display:grid;grid-template-columns:auto 1fr;gap:28px;align-items:start;margin-bottom:56px;padding-bottom:40px;border-bottom:1px solid var(--line)}
+@media(max-width:700px){.tool-hd{grid-template-columns:1fr}}
+.tool-n{font-family:'Cormorant Garamond',serif;font-size:130px;font-weight:700;line-height:.82;color:var(--line);letter-spacing:-.04em;user-select:none}
+.tool-stage{font-size:9px;font-weight:700;letter-spacing:.26em;text-transform:uppercase;color:var(--r);margin-bottom:12px}
+.tool-h{font-family:'Cormorant Garamond',serif;font-size:clamp(34px,4vw,52px);font-weight:600;line-height:1.0;color:var(--k);margin-bottom:16px}
+.tool-h em{font-style:italic;font-weight:300;color:var(--mid)}
+.tool-sub{font-size:14.5px;color:var(--mid);line-height:1.78;max-width:580px}
+
+/* SLIST */
+.sov{font-size:9px;font-weight:700;letter-spacing:.26em;text-transform:uppercase;color:var(--r);margin-bottom:18px}
+.slist{display:grid;grid-template-columns:1fr 1fr;gap:2px;background:var(--line);border:1px solid var(--line);margin-bottom:60px}
+@media(max-width:700px){.slist{grid-template-columns:1fr}}
+.sl{background:var(--w);padding:20px 22px;display:flex;gap:14px;align-items:flex-start;transition:background .13s}
+.sl:hover{background:#fff}
+.sl-n{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:700;color:var(--line);line-height:1;flex-shrink:0;width:26px;margin-top:2px}
+.sl-ico{font-size:18px;flex-shrink:0;margin-top:4px}
+.sl-b{flex:1}
+.sl-t{font-size:13.5px;font-weight:700;color:var(--k);margin-bottom:4px}
+.sl-d{font-size:12px;color:var(--mid);line-height:1.65}
+.sl-tag{display:inline-block;margin-top:7px;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:2px 8px;border-radius:3px}
+.tr{background:#fce8eb;color:var(--r)}.tg{background:#e4f4eb;color:var(--g)}.tn{background:#e8ecf5;color:var(--n)}
+
+/* TOTALS */
+.totals{background:var(--w);padding:56px 44px;display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center;border-bottom:1px solid var(--line)}
+@media(max-width:800px){.totals{grid-template-columns:1fr;gap:36px}}
+.tot-ov{font-size:9px;font-weight:700;letter-spacing:.26em;text-transform:uppercase;color:var(--r);margin-bottom:16px}
+.tot-h{font-family:'Cormorant Garamond',serif;font-size:38px;font-weight:600;color:var(--k);line-height:1.05;margin-bottom:14px}
+.tot-h em{font-style:italic;font-weight:300;color:var(--mid)}
+.tot-d{font-size:13.5px;color:var(--mid);line-height:1.78}
+.totals-card{border-radius:12px;overflow:hidden;box-shadow:0 8px 32px rgba(27,42,74,.12);border:1px solid #d0d8e8}
+.tc-hd{background:var(--n);padding:14px 20px;font-size:12px;font-weight:700;color:#fff}
+.tc-rows{padding:4px 0;background:#fff}
+.tc-r{display:flex;justify-content:space-between;padding:11px 20px;border-bottom:1px solid #f0ede8;font-size:13px}
+.tc-r:last-child{border-bottom:none}
+.tc-l{color:#888}.tc-v{font-weight:700;color:var(--k)}.tc-disc{color:#d97706!important}
+.tc-total{background:var(--n);display:flex;justify-content:space-between;padding:14px 20px}
+.tc-tl{font-size:10px;font-weight:700;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.12em;padding-top:6px}
+.tc-tv{font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:700;color:#fff;line-height:1}
+
+/* PDF MOCKS */
+.pdf-row{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:0 44px 80px;max-width:1200px;margin:0 auto}
+@media(max-width:700px){.pdf-row{grid-template-columns:1fr;padding:0 28px 60px}}
+.pdf{border-radius:12px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.11);border:1px solid var(--line)}
+.pdf-cover{padding:28px 24px 22px;min-height:196px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden}
+.pdf-cover::before{content:'';position:absolute;top:-50px;right:-50px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,.05)}
+.pf-red{background:var(--r)}.pf-navy{background:var(--n)}.pf-black{background:var(--k)}
+.pdf-tag{font-size:8px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.42);margin-bottom:8px}
+.pdf-title{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:600;color:#fff;line-height:1.05}
+.pdf-title em{font-style:italic;font-weight:300;opacity:.65}
+.pdf-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:14px}
+.pdf-chip{background:rgba(255,255,255,.11);border:1px solid rgba(255,255,255,.14);padding:3px 9px;border-radius:20px;font-size:9px;font-weight:600;color:rgba(255,255,255,.82)}
+.pdf-ft{font-size:8.5px;color:rgba(255,255,255,.28);border-top:1px solid rgba(255,255,255,.08);padding-top:10px;margin-top:auto}
+.pdf-body{background:#fff;padding:4px 0}
+.pdf-r{display:flex;justify-content:space-between;align-items:center;padding:9px 18px;border-bottom:1px solid #F4F1ED;font-size:12px}
+.pdf-r:last-child{border-bottom:none}
+.pdf-rl{color:#888}.pdf-rv{font-weight:700;color:var(--k)}
+.pdf-rv.g{color:var(--g)}.pdf-rv.r{color:var(--r);font-size:15px;font-family:'Cormorant Garamond',serif}
+
+/* DAY TYPES */
+.days-section{background:var(--c);padding:64px 44px}
+.days-ov{font-size:9px;font-weight:700;letter-spacing:.26em;text-transform:uppercase;color:var(--r);margin-bottom:10px}
+.days-h{font-family:'Cormorant Garamond',serif;font-size:38px;font-weight:600;color:var(--k);line-height:1.0}
+.days-h em{font-style:italic;font-weight:300;color:var(--mid)}
+.days-p{font-size:13.5px;color:var(--mid);margin-top:12px;line-height:1.72;max-width:540px}
+.dt-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:32px}
+@media(max-width:700px){.dt-grid{grid-template-columns:repeat(3,1fr)}}
+.dt{border-radius:8px;padding:18px 12px;text-align:center}
+.dt-e{font-size:22px;margin-bottom:8px}
+.dt-l{font-size:10px;font-weight:700;color:#fff;line-height:1.3}
+
+/* ACT TYPES */
+.acts-section{padding:64px 44px;background:var(--w)}
+.acts-h{font-family:'Cormorant Garamond',serif;font-size:38px;font-weight:600;color:var(--k);line-height:1.0;margin-top:10px}
+.acts-h em{font-style:italic;font-weight:300;color:var(--mid)}
+.acts-p{font-size:13.5px;color:var(--mid);margin-top:12px;line-height:1.72;max-width:540px}
+.act-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:8px;margin-top:32px}
+@media(max-width:800px){.act-grid{grid-template-columns:repeat(4,1fr)}}
+.act{background:var(--c);border:1px solid var(--line);border-radius:8px;padding:14px 8px;text-align:center;transition:background .13s,border-color .13s}
+.act:hover{background:#fff;border-color:#bbb}
+.act-e{font-size:20px;margin-bottom:5px}
+.act-l{font-size:9.5px;font-weight:600;color:var(--mid)}
+
+/* DELIVERY */
+.delivery{background:var(--c);padding:64px 44px;display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center;border-top:1px solid var(--line)}
+@media(max-width:800px){.delivery{grid-template-columns:1fr;gap:36px}}
+.dl-ov{font-size:9px;font-weight:700;letter-spacing:.26em;text-transform:uppercase;color:var(--r);margin-bottom:14px}
+.dl-h{font-family:'Cormorant Garamond',serif;font-size:40px;font-weight:600;color:var(--k);line-height:1.0;margin-bottom:14px}
+.dl-h em{font-style:italic;font-weight:300;color:var(--mid)}
+.dl-d{font-size:13.5px;color:var(--mid);line-height:1.78}
+.dl-opts{display:flex;flex-direction:column;gap:10px}
+.dl-opt{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px 18px;transition:box-shadow .14s}
+.dl-opt:hover{box-shadow:0 4px 16px rgba(0,0,0,.07)}
+.dl-opt-ico{font-size:18px;flex-shrink:0}
+.dl-opt-t{font-size:13px;font-weight:700;color:var(--k);margin-bottom:2px}
+.dl-opt-s{font-size:11.5px;color:var(--mid)}
+
+/* DESIGN */
+.design{padding:84px 44px;max-width:1200px;margin:0 auto}
+.design-intro{display:grid;grid-template-columns:1fr 1fr;gap:80px;margin-bottom:52px}
+@media(max-width:700px){.design-intro{grid-template-columns:1fr;gap:24px}}
+.palette-bar{display:flex;height:60px;border-radius:10px;overflow:hidden;border:1px solid var(--line);margin-bottom:52px}
+.ps{display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:600;letter-spacing:.05em;transition:flex .3s}
+.typo-pair{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:52px}
+@media(max-width:600px){.typo-pair{grid-template-columns:1fr}}
+.ty{border:1px solid var(--line);border-radius:10px;padding:28px;background:var(--w)}
+.ty-s{margin-bottom:12px}
+.ty-n{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--mid);margin-bottom:5px}
+.ty-r{font-size:12px;color:var(--mid);line-height:1.65}
+.compare{display:grid;grid-template-columns:1fr 2px 1fr;background:var(--line);border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+@media(max-width:700px){.compare{grid-template-columns:1fr}}
+.compare-div{background:var(--line)}
+.cmp{padding:36px 32px;background:var(--w)}
+.cmp-tag{font-size:8.5px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--r);margin-bottom:12px}
+.cmp-t{font-size:15px;font-weight:700;color:var(--k);margin-bottom:22px}
+.cmp-item{display:flex;align-items:flex-start;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+.cmp-item:last-child{border-bottom:none}
+.cmp-l{color:var(--mid);min-width:110px;flex-shrink:0}
+.cmp-v{color:var(--k);font-weight:500}
+.cmp-v .ck{color:var(--g);margin-right:4px}
+
+/* NEXT STEPS */
+.next{background:var(--w);padding:84px 44px;border-top:1px solid var(--line)}
+.next-intro{max-width:1200px;margin:0 auto}
+.next-ov{font-size:9px;font-weight:700;letter-spacing:.26em;text-transform:uppercase;color:var(--r);margin-bottom:14px}
+.next-h{font-family:'Cormorant Garamond',serif;font-size:clamp(36px,4.5vw,56px);font-weight:300;font-style:italic;color:var(--k);line-height:1.0;max-width:580px}
+.next-h strong{font-style:normal;font-weight:700}
+.ns-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;background:var(--line);max-width:1200px;margin:48px auto 0;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+@media(max-width:800px){.ns-grid{grid-template-columns:1fr}}
+.ns{background:var(--w);padding:32px 28px;transition:background .14s}
+.ns:hover{background:#fff}
+.ns-n{font-family:'Cormorant Garamond',serif;font-size:52px;font-weight:700;color:var(--r);opacity:.18;line-height:1;margin-bottom:14px}
+.ns-t{font-size:14px;font-weight:700;color:var(--k);margin-bottom:8px;line-height:1.3}
+.ns-d{font-size:13px;color:var(--mid);line-height:1.72}
+
+/* CLOSING */
+.closing{background:var(--r);padding:108px 44px;text-align:center;position:relative;overflow:hidden}
+.closing::before{content:'';position:absolute;top:-120px;left:50%;transform:translateX(-50%);width:700px;height:700px;border-radius:50%;background:rgba(255,255,255,.04)}
+.closing-ov{font-size:9.5px;font-weight:700;letter-spacing:.28em;text-transform:uppercase;color:rgba(255,255,255,.45);margin-bottom:20px;position:relative;z-index:2}
+.closing-q{font-family:'Cormorant Garamond',serif;font-size:clamp(42px,5vw,72px);font-weight:300;font-style:italic;color:#fff;line-height:1.05;max-width:700px;margin:0 auto 20px;position:relative;z-index:2}
+.closing-c{font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.4);position:relative;z-index:2}
+
+/* FOOTER */
+footer{background:#080808;padding:52px 44px 36px}
+.ft-top{display:grid;grid-template-columns:2fr 1fr 1fr;gap:48px;padding-bottom:40px;border-bottom:1px solid rgba(255,255,255,.05);margin-bottom:24px}
+@media(max-width:700px){.ft-top{grid-template-columns:1fr}}
+.ft-lm{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.ft-lmark{height:28px;padding:0 11px;border:1px dashed rgba(255,255,255,.18);border-radius:4px;font-family:'Cormorant Garamond',serif;font-size:10px;letter-spacing:.12em;color:rgba(255,255,255,.28);display:flex;align-items:center}
+.ft-bn{font-size:13px;font-weight:600;color:rgba(255,255,255,.65)}
+.ft-tl{font-size:11.5px;color:rgba(255,255,255,.28);line-height:1.72;max-width:280px}
+.ft-ct{font-size:9px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.22);margin-bottom:13px}
+.ft-col a,.ft-col p{display:block;font-size:12px;color:rgba(255,255,255,.4);text-decoration:none;margin-bottom:8px;transition:color .14s}
+.ft-col a:hover{color:rgba(255,255,255,.8)}
+.ft-bot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.ft-copy{font-size:10px;color:rgba(255,255,255,.18)}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">
+    <div class="nav-logo-mark">[LOGO]</div>
+    <div class="nav-name">MM Destinos Mágicos <small>Sistema TASS · Etapas 2 y 3</small></div>
+  </div>
+  <div class="nav-pill">Revisión inicial · Entregable 02</div>
+</nav>
+
+<!-- ══ COVER ══ -->
+<section class="cover">
+  <div class="cover-noise"></div>
+  <div class="cover-grid"></div>
+  <div class="cover-accent"></div>
+  <div class="cover-vline"></div>
+  <div class="cover-body">
+    <div class="cover-eyebrow">Entregable 02 · Sistema TASS</div>
+    <h1 class="cover-h1">
+      <em>Presupuestos</em>
+      <strong>&amp; Itinerarios</strong>
+    </h1>
+    <p class="cover-tagline">Dos herramientas que transforman una consulta en una propuesta de viaje profesional — lista para aprobar.</p>
+    <div class="cover-meta">
+      <div class="cmi"><div class="cmi-l">Cliente</div><div class="cmi-v">MM Destinos Mágicos</div></div>
+      <div class="cmi"><div class="cmi-l">Agente</div><div class="cmi-v">Mariela Mazzitelli</div></div>
+      <div class="cmi"><div class="cmi-l">Herramientas</div><div class="cmi-v">Auto Quote + Itinerary Builder</div></div>
+      <div class="cmi"><div class="cmi-l">Estado</div><div class="cmi-v">Revisión inicial</div></div>
+    </div>
+  </div>
+  <div class="cover-scroll">↓ scroll</div>
+</section>
+
+<!-- ══ CH 01 ══ -->
+<div class="ch"><span class="ch-n">01</span><div class="ch-line"></div><span class="ch-t">Contexto del proyecto</span></div>
+
+<div class="intro">
+  <div>
+    <div class="intro-overline">¿Qué construimos y para qué?</div>
+    <h2 class="intro-h">Del lead<br>al <em>viaje aprobado</em></h2>
+  </div>
+  <div>
+    <p class="intro-p">Completando las etapas 2 y 3 del sistema TASS, entregamos dos herramientas que toman los datos del lead captado en la etapa 1 y los convierten en <strong>presupuestos profesionales</strong> e <strong>itinerarios detallados</strong>.</p>
+    <p class="intro-p">Todo funciona encadenado: el formulario genera el lead, el Auto Quote construye la cotización, y el Itinerary Builder convierte esa cotización en un plan día a día listo para el cliente.</p>
+  </div>
+</div>
+
+<div class="strip">
+  <div class="strip-card"><div class="sc-ico">⚡</div><div class="sc-t">Datos conectados entre herramientas</div><div class="sc-d">El presupuesto alimenta al generador de itinerario. Sin doble carga, sin errores de transcripción.</div></div>
+  <div class="strip-card"><div class="sc-ico">📄</div><div class="sc-t">PDF de marca con un clic</div><div class="sc-d">Portada con identidad MM, tablas estructuradas, condiciones de pago. Listo para enviar.</div></div>
+  <div class="strip-card"><div class="sc-ico">🧱</div><div class="sc-t">100% personalizable</div><div class="sc-d">Secciones con toggle, filas dinámicas de hoteles, extras y cuotas. Todo adaptable al viaje.</div></div>
+  <div class="strip-card"><div class="sc-ico">📱</div><div class="sc-t">Sin backend ni apps</div><div class="sc-d">HTML autónomo. Sin instalación, sin base de datos, sin costo mensual.</div></div>
+</div>
+
+<!-- ══ CH 02 ══ -->
+<div class="ch"><span class="ch-n">02</span><div class="ch-line"></div><span class="ch-t">Flujo del sistema</span></div>
+
+<div class="pipeline-wrap">
+  <div class="pipeline-head">
+    <div class="pipeline-ov">Tres etapas · Un solo flujo</div>
+    <h2 class="pipeline-h">Cada herramienta<br><em>usa la anterior</em></h2>
+  </div>
+  <div class="pipeline">
+    <div class="pipe-item"><div class="pipe-arrow">→</div><div class="pipe-n">01</div><div class="pipe-stage">Etapa 1 — Lead Capture</div><div class="pipe-t">Formulario de consulta</div><div class="pipe-d">El cliente completa destino, fechas y viajeros. Mariela recibe todo por WhatsApp.</div></div>
+    <div class="pipe-item"><div class="pipe-arrow">→</div><div class="pipe-n">02</div><div class="pipe-stage">Etapa 2 — Auto Quote</div><div class="pipe-t">Generador de presupuesto</div><div class="pipe-d">Mariela carga vuelo, hoteles y tickets. El sistema calcula el total en tiempo real.</div></div>
+    <div class="pipe-item"><div class="pipe-arrow">→</div><div class="pipe-n">03</div><div class="pipe-stage">Etapa 3 — Itinerary Builder</div><div class="pipe-t">Constructor de itinerario</div><div class="pipe-d">Los datos del presupuesto se transfieren con un clic. Mariela arma el plan día a día.</div></div>
+    <div class="pipe-item"><div class="pipe-n">04</div><div class="pipe-stage">Entrega al cliente</div><div class="pipe-t">PDF + link personalizado</div><div class="pipe-d">Cotización e itinerario completo, documentos de marca listos para aprobar.</div></div>
+  </div>
+</div>
+
+<!-- ══ CH 03 ══ -->
+<div class="ch"><span class="ch-n">03</span><div class="ch-line"></div><span class="ch-t">Auto Quote — Generador de presupuestos</span></div>
+
+<div class="tool">
+  <div class="tool-hd">
+    <div class="tool-n">02</div>
+    <div>
+      <div class="tool-stage">Etapa 2 · presupuesto.html</div>
+      <h3 class="tool-h">Auto Quote —<br><em>Cotizaciones inteligentes</em></h3>
+      <p class="tool-sub">Constructor de dos paneles: izquierda con todas las secciones del viaje; derecha con el resumen económico actualizado en tiempo real. Un botón genera el PDF y otro transfiere los datos al Itinerary Builder.</p>
+    </div>
+  </div>
+
+  <div class="sov">13 secciones colapsables</div>
+  <div class="slist">
+    <div class="sl"><div class="sl-n">1</div><div class="sl-ico">👤</div><div class="sl-b"><div class="sl-t">Datos del cliente</div><div class="sl-d">Nombre, WhatsApp, email, país, adultos, menores y edades. Encabezado visible en todo el builder.</div><span class="sl-tag tr">Requerido</span></div></div>
+    <div class="sl"><div class="sl-n">2</div><div class="sl-ico">🗺️</div><div class="sl-b"><div class="sl-t">Destino y fechas</div><div class="sl-d">Destino, fechas de entrada/salida, noches auto-calculadas e indicador de temporada.</div><span class="sl-tag tr">Requerido</span></div></div>
+    <div class="sl"><div class="sl-n">3</div><div class="sl-ico">✈️</div><div class="sl-b"><div class="sl-t">Vuelo</div><div class="sl-d">Origen, destino, aerolínea, clase, fechas, precio por persona, tasas y checklist de incluye.</div><span class="sl-tag tn">Opcional</span></div></div>
+    <div class="sl"><div class="sl-n">4</div><div class="sl-ico">🏨</div><div class="sl-b"><div class="sl-t">Alojamiento</div><div class="sl-d">Filas dinámicas de hoteles: nombre, categoría, habitación, fechas y precio por noche.</div><span class="sl-tag tr">Requerido</span></div></div>
+    <div class="sl"><div class="sl-n">5</div><div class="sl-ico">🎟️</div><div class="sl-b"><div class="sl-t">Tickets y parques</div><div class="sl-d">Magic Kingdom, EPCOT, Hollywood Studios, Animal Kingdom, Universal, Epic Universe.</div><span class="sl-tag tn">Opcional</span></div></div>
+    <div class="sl"><div class="sl-n">6</div><div class="sl-ico">🚐</div><div class="sl-b"><div class="sl-t">Traslados</div><div class="sl-d">Aeropuerto–hotel, tipo de servicio (privado / compartido / shuttle), proveedor y precios.</div><span class="sl-tag tn">Opcional</span></div></div>
+    <div class="sl"><div class="sl-n">7</div><div class="sl-ico">🚢</div><div class="sl-b"><div class="sl-t">Crucero Disney</div><div class="sl-d">Barco, itinerario, noches, categoría de camarote y precio total.</div><span class="sl-tag tn">Opcional</span></div></div>
+    <div class="sl"><div class="sl-n">8</div><div class="sl-ico">🛡️</div><div class="sl-b"><div class="sl-t">Seguro de viaje</div><div class="sl-d">Compañía, plan, cobertura médica y precio total.</div><span class="sl-tag tn">Opcional</span></div></div>
+    <div class="sl"><div class="sl-n">9</div><div class="sl-ico">🍽️</div><div class="sl-b"><div class="sl-t">Plan de comidas</div><div class="sl-d">Quick-Service, Dining Plan, Deluxe Dining, All Inclusive o Personalizado.</div><span class="sl-tag tn">Opcional</span></div></div>
+    <div class="sl"><div class="sl-n">10</div><div class="sl-ico">⭐</div><div class="sl-b"><div class="sl-t">Extras y opcionales</div><div class="sl-d">Ítems adicionales libres (Lightning Lane, excursiones) con precio unitario. Campo "no incluye".</div><span class="sl-tag tn">Opcional</span></div></div>
+    <div class="sl"><div class="sl-n">11</div><div class="sl-ico">🏷️</div><div class="sl-b"><div class="sl-t">Descuento</div><div class="sl-d">Porcentaje con motivo. Se refleja en el resumen y en el PDF.</div><span class="sl-tag tn">Opcional</span></div></div>
+    <div class="sl"><div class="sl-n">12</div><div class="sl-ico">💳</div><div class="sl-b"><div class="sl-t">Forma de pago</div><div class="sl-d">Plan de cuotas dinámico. Métodos: transferencia, tarjeta, efectivo, cripto.</div><span class="sl-tag tr">Requerido</span></div></div>
+    <div class="sl"><div class="sl-n">13</div><div class="sl-ico">📝</div><div class="sl-b"><div class="sl-t">Notas y condiciones</div><div class="sl-d">Condiciones generales, política de cancelación y mensaje personalizado.</div><span class="sl-tag tg">Libre</span></div></div>
+  </div>
+</div>
+
+<div class="totals">
+  <div>
+    <div class="tot-ov">Panel de totales · Tiempo real</div>
+    <h3 class="tot-h">Resumen económico<br><em>siempre visible</em></h3>
+    <p class="tot-d">El sidebar derecho calcula y desglosa cada componente con cada cambio. El total final aplica descuentos al instante — sin guardar ni refrescar.</p>
+  </div>
+  <div class="totals-card">
+    <div class="tc-hd">💰 Resumen económico — Vista previa</div>
+    <div class="tc-rows">
+      <div class="tc-r"><span class="tc-l">✈️ Vuelo</span><span class="tc-v">$ 2.400</span></div>
+      <div class="tc-r"><span class="tc-l">🏨 Alojamiento</span><span class="tc-v">$ 3.150</span></div>
+      <div class="tc-r"><span class="tc-l">🎟️ Tickets y parques</span><span class="tc-v">$ 1.890</span></div>
+      <div class="tc-r"><span class="tc-l">🚐 Traslados</span><span class="tc-v">$ 220</span></div>
+      <div class="tc-r"><span class="tc-l">🛡️ Seguro de viaje</span><span class="tc-v">$ 320</span></div>
+      <div class="tc-r"><span class="tc-l tc-disc">🏷️ Descuento 5%</span><span class="tc-v tc-disc">− $ 399</span></div>
+    </div>
+    <div class="tc-total"><div class="tc-tl">Total del viaje</div><div class="tc-tv">$ 7.581</div></div>
+  </div>
+</div>
+
+<div class="pdf-row" style="padding-top:60px">
+  <div class="pdf">
+    <div class="pdf-cover pf-red">
+      <div><div class="pdf-tag">MM Destinos Mágicos · Auto Quote</div><div class="pdf-title">Propuesta <em>de viaje</em></div><div class="pdf-chips"><div class="pdf-chip">✈️ Orlando</div><div class="pdf-chip">📅 7 noches</div><div class="pdf-chip">👨‍👩‍👧 2+1</div><div class="pdf-chip">🔴 Temporada alta</div></div></div>
+      <div class="pdf-ft">MM-291847 · Válido 30 días · TASS Auto Quote</div>
+    </div>
+    <div class="pdf-body">
+      <div class="pdf-r"><span class="pdf-rl">Portada con identidad MM</span><span class="pdf-rv g">✓</span></div>
+      <div class="pdf-r"><span class="pdf-rl">Tabla detallada de costos</span><span class="pdf-rv g">✓</span></div>
+      <div class="pdf-r"><span class="pdf-rl">Incluye / no incluye</span><span class="pdf-rv g">✓</span></div>
+      <div class="pdf-r"><span class="pdf-rl">Plan de pagos y condiciones</span><span class="pdf-rv g">✓</span></div>
+      <div class="pdf-r"><span class="pdf-rl">Número MM-XXXXXX auto</span><span class="pdf-rv g">✓</span></div>
+    </div>
+  </div>
+  <div class="pdf">
+    <div class="pdf-cover pf-black" style="min-height:160px"><div><div class="pdf-tag">Funciones del builder</div><div class="pdf-title">Más allá <em>del PDF</em></div></div></div>
+    <div class="pdf-body">
+      <div class="pdf-r"><span class="pdf-rl">🔗 Transferir al itinerario</span><span class="pdf-rv g">Un clic</span></div>
+      <div class="pdf-r"><span class="pdf-rl">👁 Vista previa en modal</span><span class="pdf-rv g">Antes de descargar</span></div>
+      <div class="pdf-r"><span class="pdf-rl">📊 Cálculo en tiempo real</span><span class="pdf-rv g">Automático</span></div>
+      <div class="pdf-r"><span class="pdf-rl">✅ Número de cotización</span><span class="pdf-rv g">Auto-generado</span></div>
+      <div class="pdf-r"><span class="pdf-rl">📅 Validez configurable</span><span class="pdf-rv g">En el PDF</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CH 04 ══ -->
+<div class="ch"><span class="ch-n">04</span><div class="ch-line"></div><span class="ch-t">Itinerary Builder — Constructor de itinerarios</span></div>
+
+<div class="tool">
+  <div class="tool-hd">
+    <div class="tool-n">03</div>
+    <div>
+      <div class="tool-stage">Etapa 3 · itinerario.html</div>
+      <h3 class="tool-h">Itinerary Builder —<br><em>Cada día, cada momento</em></h3>
+      <p class="tool-sub">Editor visual de itinerarios día a día. Carga automáticamente los datos del presupuesto, genera la estructura base del viaje y permite armar cada actividad hora por hora.</p>
+    </div>
+  </div>
+</div>
+
+<div class="days-section">
+  <div style="max-width:1200px;margin:0 auto">
+    <div class="days-ov">10 tipos de día</div>
+    <h3 class="days-h">Color semántico <em>por jornada</em></h3>
+    <p class="days-p">Cada día tiene un tipo que define el color del encabezado y el contexto de las actividades. El color guía la lectura del itinerario de un vistazo.</p>
+    <div class="dt-grid">
+      <div class="dt" style="background:#14532d"><div class="dt-e">🛬</div><div class="dt-l">Llegada</div></div>
+      <div class="dt" style="background:#166534"><div class="dt-e">🌿</div><div class="dt-l">Día libre</div></div>
+      <div class="dt" style="background:var(--r)"><div class="dt-e">🎢</div><div class="dt-l">Día de parque</div></div>
+      <div class="dt" style="background:#92400e"><div class="dt-e">😴</div><div class="dt-l">Descanso</div></div>
+      <div class="dt" style="background:#1e3a5f"><div class="dt-e">🔄</div><div class="dt-l">Traslado hotel</div></div>
+      <div class="dt" style="background:var(--n)"><div class="dt-e">🛫</div><div class="dt-l">Salida</div></div>
+      <div class="dt" style="background:#0369a1"><div class="dt-e">🏖️</div><div class="dt-l">Playa &amp; relax</div></div>
+      <div class="dt" style="background:#4338ca"><div class="dt-e">🏛️</div><div class="dt-l">Ciudad &amp; cultura</div></div>
+      <div class="dt" style="background:#0f4c6e"><div class="dt-e">🚢</div><div class="dt-l">Puerto / Crucero</div></div>
+      <div class="dt" style="background:#065f46"><div class="dt-e">🌄</div><div class="dt-l">Excursión</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="acts-section">
+  <div style="max-width:1200px;margin:0 auto">
+    <div class="days-ov">16 tipos de actividad</div>
+    <h3 class="acts-h">Picker de emoji <em>por actividad</em></h3>
+    <p class="acts-p">Cada actividad tiene hora, tipo seleccionable desde picker visual, descripción y nota adicional opcional.</p>
+    <div class="act-grid">
+      <div class="act"><div class="act-e">🏰</div><div class="act-l">Parque</div></div>
+      <div class="act"><div class="act-e">🌿</div><div class="act-l">Libre</div></div>
+      <div class="act"><div class="act-e">✈️</div><div class="act-l">Vuelo</div></div>
+      <div class="act"><div class="act-e">🚐</div><div class="act-l">Traslado</div></div>
+      <div class="act"><div class="act-e">🏨</div><div class="act-l">Hotel</div></div>
+      <div class="act"><div class="act-e">🍽️</div><div class="act-l">Cena</div></div>
+      <div class="act"><div class="act-e">🎢</div><div class="act-l">Atracción</div></div>
+      <div class="act"><div class="act-e">🛍️</div><div class="act-l">Shopping</div></div>
+      <div class="act"><div class="act-e">🏖️</div><div class="act-l">Playa</div></div>
+      <div class="act"><div class="act-e">🚢</div><div class="act-l">Crucero</div></div>
+      <div class="act"><div class="act-e">😴</div><div class="act-l">Descanso</div></div>
+      <div class="act"><div class="act-e">📸</div><div class="act-l">Foto</div></div>
+      <div class="act"><div class="act-e">🎭</div><div class="act-l">Show</div></div>
+      <div class="act"><div class="act-e">💧</div><div class="act-l">Acuático</div></div>
+      <div class="act"><div class="act-e">🌮</div><div class="act-l">Comida</div></div>
+      <div class="act"><div class="act-e">⭐</div><div class="act-l">Especial</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="pdf-row" style="padding-top:60px">
+  <div class="pdf">
+    <div class="pdf-cover pf-navy">
+      <div><div class="pdf-tag">MM Destinos Mágicos · Itinerary Builder</div><div class="pdf-title">Tu itinerario <em>mágico</em></div><div class="pdf-chips"><div class="pdf-chip">10 días · 9 noches</div><div class="pdf-chip">4 parques Disney</div><div class="pdf-chip">2 adultos · 1 menor</div></div></div>
+      <div class="pdf-ft">IT-MM-291847 · TASS Itinerary Builder</div>
+    </div>
+    <div class="pdf-body">
+      <div class="pdf-r"><span class="pdf-rl">Portada navy con datos del viaje</span><span class="pdf-rv g">✓</span></div>
+      <div class="pdf-r"><span class="pdf-rl">Páginas por grupo de días</span><span class="pdf-rv g">✓</span></div>
+      <div class="pdf-r"><span class="pdf-rl">Actividades hora a hora</span><span class="pdf-rv g">✓</span></div>
+      <div class="pdf-r"><span class="pdf-rl">Notas del día destacadas</span><span class="pdf-rv g">✓</span></div>
+      <div class="pdf-r"><span class="pdf-rl">Numeración por página</span><span class="pdf-rv g">✓</span></div>
+    </div>
+  </div>
+  <div class="pdf">
+    <div class="pdf-cover pf-black" style="min-height:160px"><div><div class="pdf-tag">Panel de configuración</div><div class="pdf-title">Reglas y <em>automatización</em></div></div></div>
+    <div class="pdf-body">
+      <div class="pdf-r"><span class="pdf-rl">🔄 Regeneración automática</span><span class="pdf-rv g">Un clic</span></div>
+      <div class="pdf-r"><span class="pdf-rl">📥 Carga desde presupuesto</span><span class="pdf-rv g">Via URL</span></div>
+      <div class="pdf-r"><span class="pdf-rl">⛳ Parques habilitables</span><span class="pdf-rv g">Por checkbox</span></div>
+      <div class="pdf-r"><span class="pdf-rl">↕️ Días colapsables</span><span class="pdf-rv g">Itinerarios largos</span></div>
+      <div class="pdf-r"><span class="pdf-rl">📋 Demo Disney pre-cargado</span><span class="pdf-rv g">Para pruebas</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="delivery">
+  <div>
+    <div class="dl-ov">Entrega al cliente</div>
+    <h3 class="dl-h">Cuatro formas<br><em>de compartir</em></h3>
+    <p class="dl-d">El itinerario puede entregarse como PDF descargable, link compartible o por WhatsApp y email. El link se acorta con TinyURL y funciona desde cualquier dispositivo sin login.</p>
+  </div>
+  <div class="dl-opts">
+    <div class="dl-opt"><div class="dl-opt-ico">📥</div><div><div class="dl-opt-t">PDF descargable</div><div class="dl-opt-s">Generado con html2canvas + jsPDF, vista previa en modal</div></div></div>
+    <div class="dl-opt"><div class="dl-opt-ico">🔗</div><div><div class="dl-opt-t">Link compartible</div><div class="dl-opt-s">Itinerario en base64, acortado con TinyURL</div></div></div>
+    <div class="dl-opt"><div class="dl-opt-ico">💬</div><div><div class="dl-opt-t">WhatsApp directo</div><div class="dl-opt-s">Botón de envío desde el modal</div></div></div>
+    <div class="dl-opt"><div class="dl-opt-ico">📧</div><div><div class="dl-opt-t">Email</div><div class="dl-opt-s">Botón de envío directo desde el modal</div></div></div>
+  </div>
+</div>
+
+<!-- ══ CH 05 ══ -->
+<div class="ch"><span class="ch-n">05</span><div class="ch-line"></div><span class="ch-t">Identidad visual</span></div>
+
+<div class="design">
+  <div class="design-intro">
+    <div>
+      <div class="intro-overline">Diseño consistente en las tres etapas</div>
+      <h3 class="intro-h">Una suite<br><em>cohesiva</em></h3>
+    </div>
+    <div style="padding-top:6px">
+      <p class="intro-p">Las etapas 2 y 3 mantienen la misma identidad que el formulario de etapa 1 — paleta, tipografías y estructura de topbar fijo. Las tres herramientas se perciben como un sistema unificado de marca.</p>
+    </div>
+  </div>
+
+  <div class="palette-bar">
+    <div class="ps" style="background:#C8102E;flex:2.2;color:rgba(255,255,255,.65)">#C8102E</div>
+    <div class="ps" style="background:#0E0E0E;flex:1.5;color:rgba(255,255,255,.45)">#0E0E0E</div>
+    <div class="ps" style="background:#1B2A4A;flex:1.2;color:rgba(255,255,255,.5)">#1B2A4A</div>
+    <div class="ps" style="background:#1A7A40;flex:1;color:rgba(255,255,255,.6)">#1A7A40</div>
+    <div class="ps" style="background:#B8860B;flex:1;color:rgba(255,255,255,.7)">#B8860B</div>
+    <div class="ps" style="background:#F2EEE8;flex:1.5;color:#aaa;border-left:1px solid #ddd">#F2EEE8</div>
+  </div>
+
+  <div class="typo-pair">
+    <div class="ty"><div class="ty-s" style="font-family:'Cormorant Garamond',serif;font-size:42px;font-weight:600;color:var(--k);line-height:1">Playfair Display</div><div class="ty-n">Tipografía titular</div><div class="ty-r">Títulos de días, encabezados del PDF, nombres de clientes. Serif elegante que da personalidad de lujo a cada documento.</div></div>
+    <div class="ty"><div class="ty-s" style="font-size:30px;font-weight:800;color:var(--k);letter-spacing:-.5px;line-height:1">Nunito</div><div class="ty-n">Tipografía de interfaz</div><div class="ty-r">Campos, etiquetas, botones, descripciones. Redondeada y amigable, optimizada para lectura en pantalla.</div></div>
+  </div>
+
+  <div style="font-size:9px;font-weight:700;letter-spacing:.26em;text-transform:uppercase;color:var(--r);margin-bottom:18px">Etapa 1 vs Etapas 2 y 3</div>
+  <div class="compare">
+    <div class="cmp">
+      <div class="cmp-tag">Etapa 1 · Lead Capture</div>
+      <div class="cmp-t">Formulario de consulta</div>
+      <div class="cmp-item"><span class="cmp-l">Audiencia</span><span class="cmp-v">Cliente final</span></div>
+      <div class="cmp-item"><span class="cmp-l">Estructura</span><span class="cmp-v">Multi-paso guiado</span></div>
+      <div class="cmp-item"><span class="cmp-l">Topbar</span><span class="cmp-v">Fijo con progreso</span></div>
+      <div class="cmp-item"><span class="cmp-l">Salida</span><span class="cmp-v">Mensaje WhatsApp</span></div>
+      <div class="cmp-item"><span class="cmp-l">Conexión</span><span class="cmp-v">—</span></div>
+      <div class="cmp-item"><span class="cmp-l">Datos dinámicos</span><span class="cmp-v">Edades de menores</span></div>
+    </div>
+    <div class="compare-div"></div>
+    <div class="cmp">
+      <div class="cmp-tag">Etapas 2 y 3 · Auto Quote + Itinerary</div>
+      <div class="cmp-t">Herramientas de gestión</div>
+      <div class="cmp-item"><span class="cmp-l">Audiencia</span><span class="cmp-v"><span class="ck">✓</span>Mariela (uso interno)</span></div>
+      <div class="cmp-item"><span class="cmp-l">Estructura</span><span class="cmp-v"><span class="ck">✓</span>Builder + sidebar</span></div>
+      <div class="cmp-item"><span class="cmp-l">Topbar</span><span class="cmp-v"><span class="ck">✓</span>Fijo con acciones rápidas</span></div>
+      <div class="cmp-item"><span class="cmp-l">Salida</span><span class="cmp-v"><span class="ck">✓</span>PDF + link compartible</span></div>
+      <div class="cmp-item"><span class="cmp-l">Conexión</span><span class="cmp-v"><span class="ck">✓</span>Presupuesto → Itinerario</span></div>
+      <div class="cmp-item"><span class="cmp-l">Datos dinámicos</span><span class="cmp-v"><span class="ck">✓</span>Hoteles, extras, cuotas</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CH 06 ══ -->
+<div class="ch"><span class="ch-n">06</span><div class="ch-line"></div><span class="ch-t">Próximos pasos</span></div>
+
+<div class="next">
+  <div class="next-intro">
+    <div class="next-ov">¿Qué viene después?</div>
+    <h3 class="next-h">Seis acciones para <strong>cerrar el sistema</strong></h3>
+  </div>
+  <div class="ns-grid">
+    <div class="ns"><div class="ns-n">1</div><div class="ns-t">Pruebas completas del sistema</div><div class="ns-d">Generar un presupuesto con todas las secciones habilitadas, pasarlo al itinerario y armar un plan de 7 a 10 días con actividades reales.</div></div>
+    <div class="ns"><div class="ns-n">2</div><div class="ns-t">Insertar el logo real</div><div class="ns-d">Reemplazar el placeholder [LOGO] con la imagen de MM Destinos Mágicos para las portadas del PDF de presupuesto e itinerario.</div></div>
+    <div class="ns"><div class="ns-n">3</div><div class="ns-t">Completar los datos de la agencia</div><div class="ns-d">Ingresar el teléfono oficial, redes y datos legales para que aparezcan correctamente en todos los documentos.</div></div>
+    <div class="ns"><div class="ns-n">4</div><div class="ns-t">Documentar correcciones y mejoras</div><div class="ns-d">Enviar el documento de feedback con correcciones, modificaciones y mejoras sugeridas antes de la entrega final.</div></div>
+    <div class="ns"><div class="ns-n">5</div><div class="ns-t">Publicar el sistema en producción</div><div class="ns-d">Subir los archivos a un hosting estático como Netlify. Sin base de datos, sin backend, sin costo mensual.</div></div>
+    <div class="ns"><div class="ns-n">6</div><div class="ns-t">Etapa 4 — Panel de gestión</div><div class="ns-d">Herramienta que centralice todas las consultas del formulario, con filtros por estado, destino y fecha.</div></div>
+  </div>
+</div>
+
+<!-- ══ CLOSING ══ -->
+<div class="closing">
+  <div class="closing-ov">MM Destinos Mágicos</div>
+  <div class="closing-q">"Viajes mágicos,<br>experiencias únicas"</div>
+  <div class="closing-c">Mariela Andrea Mazzitelli · Agente certificada Disney &amp; Universal Studios</div>
+</div>
+
+<!-- ══ FOOTER ══ -->
+<footer>
+  <div class="ft-top">
+    <div>
+      <div class="ft-lm"><div class="ft-lmark">[LOGO]</div><div class="ft-bn">MM Destinos Mágicos</div></div>
+      <div class="ft-tl">Gracias por la revisión de las Etapas 2 y 3. Para consultas, ajustes o avanzar con la siguiente etapa, contactarse directamente.</div>
+    </div>
+    <div class="ft-col">
+      <div class="ft-ct">Mariela Mazzitelli</div>
+      <a href="https://wa.me/5492235366351">+54 9 2235 36-6351</a>
+      <a href="https://instagram.com/mm_destinosmagicos">@mm_destinosmagicos</a>
+      <p>Agente certificada · Disney &amp; Universal</p>
+    </div>
+    <div class="ft-col">
+      <div class="ft-ct">IT-Integral Solutions</div>
+      <p>Desarrollo &amp; Tecnología</p>
+      <p>Oscar Falón Fersan</p>
+      <a href="https://wa.me/5491133634277">+54 9 11 3363-4277</a>
+    </div>
+  </div>
+  <div class="ft-bot">
+    <span class="ft-copy">MM Destinos Mágicos · IT-Integral Solutions</span>
+    <span class="ft-copy">Revisión inicial · Entregable 02 · Sistema TASS Etapas 2 y 3</span>
+  </div>
+</footer>
+
+</body>
+</html>
