@@ -1,16 +1,16 @@
 /**
- * TASS — itinerary-generator.js v3.0
- * Input:  budget de collectBudgetData()
- * Output: Array<Dia> listo para renderizar
+ * TASS — itinerary-generator.js v4.0
+ * Input:  budget (collectBudgetData)
+ * Output: Array<Dia> con agenda detallada por franja horaria
  */
 var TASS_ItineraryGenerator = (function () {
 
+  // ── Utils ───────────────────────────────────────────────
   function addDays(str, n) {
     var d = new Date(str + 'T12:00:00');
     d.setDate(d.getDate() + n);
     return d.toISOString().split('T')[0];
   }
-
   function formatDateES(str) {
     if (!str) return '—';
     var d  = new Date(str + 'T12:00:00');
@@ -19,12 +19,6 @@ var TASS_ItineraryGenerator = (function () {
               'julio','agosto','septiembre','octubre','noviembre','diciembre'];
     return DD[d.getDay()] + ', ' + d.getDate() + ' de ' + MM[d.getMonth()] + ' ' + d.getFullYear();
   }
-
-  var DEF = { desayuno:'08:00', parque:'09:00', almuerzo:'13:00',
-              cena:'19:30', traslado:'10:00', checkout:'11:00' };
-  function H(tipo, horarios) { return (horarios && horarios[tipo]) || DEF[tipo]; }
-
-  // ── Fechas desde budget ─────────────────────────────────
   function getFechas(b) {
     var v = b.vuelo, d = b.destino || {};
     return {
@@ -33,7 +27,7 @@ var TASS_ItineraryGenerator = (function () {
     };
   }
 
-  // ── Modo desde budget ───────────────────────────────────
+  // ── Detección de modo ───────────────────────────────────
   function detectModo(b) {
     if (b.crucero) return 'crucero';
     var dest = ((b.destino && b.destino.nombre) || '').toLowerCase();
@@ -42,190 +36,257 @@ var TASS_ItineraryGenerator = (function () {
     }).join(' ');
     var all = dest + ' ' + tks;
     if (/disney|magic.?kingdom|epcot|hollywood.studios|animal.kingdom/i.test(all))         return 'disney';
-    if (/universal|islands.of.adventure|epic.universe|seaworld|busch|aquatica/i.test(all)) return 'disney';
+    if (/universal|islands.of.adventure|epic.universe/i.test(all))                         return 'universal';
+    if (/disney.*universal|universal.*disney/i.test(all))                                   return 'combo';
+    if (/seaworld|busch|aquatica/i.test(all))                                               return 'disney';
     if (/caribe|cancun|cancún|playa|beach|resort/i.test(dest))                             return 'playa';
     if (/europa|paris|madrid|roma|london|amsterdam|ciudad/i.test(dest))                    return 'ciudad';
     return 'libre';
   }
 
-  // ── Parques en orden desde tickets ─────────────────────
+  // ── Parques ordenados desde tickets ────────────────────
+  var DISNEY_ORDER = ['Magic Kingdom','EPCOT','Hollywood Studios','Animal Kingdom'];
+  var UNIV_ORDER   = ['Universal Studios','Islands of Adventure','Epic Universe'];
+
   function buildParquesOrdenados(b, fallback) {
+    // Intentar leer desde tickets
     var lista = [];
-    if (b.ticketsActivos === false) return fallback || [];
-    (b.tickets || []).forEach(function(t) {
-      var src = t.parque || t.desc || '';
-      // Normalizar: quitar prefijos, quedarse con el tipo de ticket
-      var raw = src
-        .replace(/^Walt Disney World\s*[–\-]\s*/i, '')
-        .replace(/^Disney WDW\s*[–\-]\s*/i,       '')
-        .replace(/^Disneyland\s*[–\-]\s*/i,        'Disneyland – ')
-        .replace(/^Universal\s*[–\-]\s*/i,         'Universal – ')
-        .trim();
-      // Si es tipo "Hopper / Base / Park to Park", usar el nombre del complejo como parque
-      // La descripción desc puede tener el nombre real del parque
-      if (/^(Ticket Base|Hopper|Park Hopper|Park to Park|3.Park|Base)$/i.test(raw)) {
-        // Intentar extraer parque de la descripción
-        var descRaw = (t.desc || '').split('—')[0].trim();
-        if (descRaw && !/^ticket/i.test(descRaw)) raw = descRaw;
-        else {
-          // Fallback: usar complejo
-          var comp = (t.complejo || '');
-          if (comp === 'disney-wdw')       raw = 'Walt Disney World';
-          else if (comp === 'disney-dl')   raw = 'Disneyland';
-          else if (comp === 'universal-orlando') raw = 'Universal Orlando';
-          else if (comp === 'seaworld')    raw = 'SeaWorld Orlando';
-        }
-      }
-      if (!raw || raw === 'Otro') return;
-      // Limpiar: sacar cosas como "· 4 días", "– x días", numeros finales
-      raw = raw.replace(/[·–]\s*\d+\s*días?/gi,'').replace(/\s{2,}/g,' ').trim();
-      if (!raw) return;
-      if (/water.?park|blizzard|aquatica|springs|shopping|discovery/i.test(raw)) return;
-      var cant = Math.max(1, parseInt(t.cant) || 1);
-      for (var k = 0; k < cant; k++) lista.push(raw);
+    if (b.ticketsActivos !== false) {
+      (b.tickets || []).forEach(function(t) {
+        var src = (t.parque || t.desc || '');
+        var raw = src
+          .replace(/^Walt Disney World\s*[–\-]\s*/i,'')
+          .replace(/^Disney WDW\s*[–\-]\s*/i,'')
+          .replace(/[·–]\s*\d+\s*días?/gi,'')
+          .trim();
+        // Si es un tipo genérico, ignorar — lo manejamos por modo
+        if (!raw || /^(Ticket Base|Hopper|Park Hopper|Park to Park|3.Park|Base)$/i.test(raw)) return;
+        if (/water.?park|blizzard|aquatica|springs|shopping|discovery/i.test(raw)) return;
+        var cant = Math.max(1, parseInt(t.cant) || 1);
+        for (var k = 0; k < cant; k++) lista.push(raw);
+      });
+    }
+
+    // Si no hay parques específicos, usar orden canónico según modo
+    if (!lista.length) {
+      var modo = detectModo(b);
+      if (modo === 'disney')   return DISNEY_ORDER.slice();
+      if (modo === 'universal') return UNIV_ORDER.slice();
+      if (modo === 'combo')    return DISNEY_ORDER.concat(UNIV_ORDER);
+      return fallback || DISNEY_ORDER.slice();
+    }
+
+    // Ordenar: Disney primero, Universal después
+    var disneyPks = lista.filter(function(p) {
+      return DISNEY_ORDER.some(function(d){ return p.toLowerCase().indexOf(d.toLowerCase())>-1; });
     });
-    return lista.length ? lista : (fallback || ['Magic Kingdom','EPCOT','Hollywood Studios','Animal Kingdom']);
+    var univPks = lista.filter(function(p) {
+      return UNIV_ORDER.some(function(u){ return p.toLowerCase().indexOf(u.toLowerCase())>-1; });
+    });
+    var otros = lista.filter(function(p) {
+      return !disneyPks.includes(p) && !univPks.includes(p);
+    });
+
+    // Si no matchearon, devolver lista original
+    var ordered = disneyPks.concat(univPks).concat(otros);
+    return ordered.length ? ordered : lista;
   }
 
-  function hasTicket(b, re) {
-    return (b.tickets || []).some(function(t) {
-      return re.test((t.parque||'') + ' ' + (t.desc||''));
+  // ── Hoteles y cambios de hotel ──────────────────────────
+  function getHotelTransitions(b, fechaIn, fechaOut) {
+    var aloj = (b.alojamiento || []).map(function(a) {
+      return {
+        nombre:   a.nombre   || '',
+        checkin:  a.checkin  || fechaIn,
+        checkout: a.checkout || fechaOut,
+      };
     });
+    var transitions = {};
+    if (aloj.length > 1) {
+      aloj.forEach(function(a, i) {
+        if (i > 0) transitions[a.checkin] = a;
+      });
+    }
+    return { aloj: aloj, transitions: transitions };
   }
 
-  // ── Actividades ─────────────────────────────────────────
-  var EMOJIS = { 'Magic Kingdom':'🏰','EPCOT':'🌍','Hollywood Studios':'🎬',
-    'Animal Kingdom':'🦁','Universal':'🎭','Islands of Adventure':'⚡',
-    'Epic Universe':'✨','Blizzard Beach':'❄️','Disney Springs':'🛍️',
-    'SeaWorld':'🐋','Busch Gardens':'🦓' };
-  var TIPS = {
-    'Magic Kingdom':      'Empezar por Tomorrowland — Lightning Lane para Seven Dwarfs',
-    'EPCOT':              'Guardians of the Galaxy muy temprano — World Showcase desde las 11',
-    'Hollywood Studios':  'Rise of the Resistance al abrir — llegar 30 min antes',
-    'Animal Kingdom':     'Avatar temprano — animales más activos a la mañana',
-    'Universal':          'Hagrids Motorbike al abrir — Express Pass recomendado',
-    'Islands':            'Velocicoaster al abrir — Hogwarts Express conecta los parques',
+  // ── Contenido de agendas ────────────────────────────────
+
+  var PARQUE_DATA = {
+    'Magic Kingdom': {
+      emoji: '🏰',
+      manana:   'Ingreso a Magic Kingdom antes de la apertura oficial. Primeras atracciones: Seven Dwarfs Mine Train y Space Mountain aprovechando las filas cortas de la mañana.',
+      mediodia: 'Almuerzo en Be Our Guest Restaurant o en los food carts de Main Street. Pausa estratégica para recargar energías durante las horas de mayor calor.',
+      tarde:    'Afternoon Parade por Main Street. Atracciones secundarias: Pirates of the Caribbean, Haunted Mansion, Splash Mountain. Lightning Lane para las más demandadas.',
+      noche:    '✨ Happily Ever After — el espectáculo de fuegos artificiales sobre el Castillo de Cenicienta. Posicionarse en Main Street 30 min antes para los mejores lugares.'
+    },
+    'EPCOT': {
+      emoji: '🌍',
+      manana:   'Guardianes de la Galaxia — Cosmic Rewind al abrir (Virtual Queue requerido). Luego Test Track y Mission: SPACE antes de que lleguen las multitudes.',
+      mediodia: 'World Showcase abre a las 11hs. Almuerzo temático en uno de los pabellones internacionales: México, Italia, Japón o Marruecos.',
+      tarde:    'Recorrida completa de World Showcase. Frozen Ever After en Norway. Compras artesanales en los pabellones culturales.',
+      noche:    '🌟 EPCOT Forever — espectáculo nocturno sobre el World Showcase Lagoon con proyecciones, fuegos artificiales y música icónica de Disney.'
+    },
+    'Hollywood Studios': {
+      emoji: '🎬',
+      manana:   'Rise of the Resistance al abrir — llegar 30 minutos antes del horario oficial. Esta es la atracción más demandada del parque: no puede perderse.',
+      mediodia: 'Almuerzo en Sci-Fi Dine-In Theater (reserva anticipada recomendada) o en los puestos de comida de la zona de Star Wars.',
+      tarde:    'Millennium Falcon: Smugglers Run y Slinky Dog Dash en Toy Story Land. Show de Indiana Jones.',
+      noche:    '🎆 Fantasmic! — el espectáculo nocturno que combina proyecciones sobre agua, personajes en vivo y fuegos artificiales. Llegar 45 min antes.'
+    },
+    'Animal Kingdom': {
+      emoji: '🦁',
+      manana:   'Flight of Passage en Pandora al abrir — los animales están más activos a primera hora y las filas son notablemente más cortas.',
+      mediodia: 'Almuerzo en Satuli Canteen (cocina de Pandora) o en Flame Tree Barbecue con vistas al parque. Descanso en las zonas de sombra.',
+      tarde:    'Safaris de Kilimanjaro — mejor en la tarde temprana. Kali River Rapids. Espectáculo Finding Nemo: The Big Blue... and Beyond!',
+      noche:    '🌅 Tree of Life Awakenings — proyecciones nocturnas sobre el Árbol de la Vida. Breve pero impactante. Vale la pena esperar hasta el cierre.'
+    },
+    'Universal Studios': {
+      emoji: '🎭',
+      manana:   'Harry Potter and the Escape from Gringotts al abrir. Luego Hagrid\'s Magical Creatures al inicio de la jornada aprovechando tiempos de espera mínimos.',
+      mediodia: 'Almuerzo en Three Broomsticks (Hogsmeade) o en Springfield — área de Los Simpsons. Butterbeer helado como postre imperdible.',
+      tarde:    'Hollywood Rip Ride Rockit, Transformers, Despicable Me. Zona de Springfield con atracciones interactivas.',
+      noche:    '🎵 Universal\'s Cinematic Spectacular — proyecciones sobre el lago con escenas de las películas más icónicas. Cierre mágico del día.'
+    },
+    'Islands of Adventure': {
+      emoji: '⚡',
+      manana:   'Velocicoaster al abrir — la montaña rusa más emocionante de Florida. Luego Hagrid\'s Magical Creatures Motorbike antes de que se forme la fila.',
+      mediodia: 'Almuerzo en Three Broomsticks en Hogsmeade o en Confisco Grille. Visitar Butterbeer y las tiendas mágicas de Hogsmeade.',
+      tarde:    'The Incredible Hulk Coaster, Spider-Man, Jurassic World Velocicoaster (segunda vuelta). Zona de Doctor Seuss para los más pequeños.',
+      noche:    '🦅 Cierre del día en Hogsmeade iluminado — la magia del castillo de Hogwarts con iluminación nocturna es una experiencia única.'
+    },
+    'Epic Universe': {
+      emoji: '✨',
+      manana:   'Ingreso anticipado a Ministry of Magic — Harry Potter Universe. Las nuevas atracciones de este parque 2025 tienen demanda altísima: ir muy temprano.',
+      mediodia: 'Almuerzo en la zona temática de tu elección — cada mundo tiene restaurantes inmersivos únicos.',
+      tarde:    'Exploración de los distintos mundos temáticos. Este parque tiene escala mayor que los anteriores — planificar bien el recorrido.',
+      noche:    '🌟 Espectáculo de cierre — Epic Universe ofrece una producción nocturna de gran escala. Posicionarse 20 min antes para buena visibilidad.'
+    },
   };
-  function emo(nombre) {
-    for (var k in EMOJIS) { if (nombre.toLowerCase().indexOf(k.toLowerCase())>-1) return EMOJIS[k]; }
-    return '🎢';
-  }
-  function tip(nombre) {
-    for (var k in TIPS) { if (nombre.toLowerCase().indexOf(k.toLowerCase())>-1) return TIPS[k]; }
-    return '';
-  }
 
-  function aLlegada(hotel, hs) { return [
-    { hora:'',         emoji:'✈️', color:'color-navy',    desc:'Vuelo / traslado internacional',           nota:'Controlar documentación y equipaje' },
-    { hora:'',         emoji:'🚐', color:'color-naranja', desc:'Traslado aeropuerto → '+(hotel||'hotel'),  nota:'' },
-    { hora:'',         emoji:'🏨', color:'color-azul',    desc:'Check-in en '+(hotel||'el hotel'),         nota:'Pedir Early Check-in si está disponible' },
-    { hora:'',         emoji:'🌿', color:'color-verde',   desc:'Descanso y ambientación',                  nota:'Recorrida por las instalaciones' },
-    { hora:H('cena',hs),emoji:'🍽️',color:'color-dorado', desc:'Cena de bienvenida',                      nota:'' },
-    { hora:'21:00',    emoji:'😴', color:'color-verde',   desc:'Descanso — mañana empieza la magia 🏰',   nota:'' },
-  ]; }
+  var DEFAULT_PARK = {
+    emoji: '🎢',
+    manana:   'Ingreso al parque a primera hora aprovechando las filas más cortas del día. Atracciones principales con Lightning Lane para las más demandadas.',
+    mediodia: 'Pausa para el almuerzo dentro del parque. Descanso estratégico para afrontar la tarde con energía.',
+    tarde:    'Segunda ronda de atracciones, shows y experiencias interactivas. Compras de souvenirs en las tiendas temáticas.',
+    noche:    'Show o espectáculo de cierre del parque. Una experiencia que vale la pena esperar para terminar el día con magia.'
+  };
 
-  function aParque(nombre, hs) { return [
-    { hora:'07:30',          emoji:'☀️',   color:'color-dorado', desc:'Desayuno y preparación',              nota:'Protector solar, ropa cómoda, snacks' },
-    { hora:H('parque',hs),   emoji:emo(nombre), color:'color-rojo', desc:'Apertura — Entrada a '+nombre,    nota:tip(nombre) },
-    { hora:'11:00',          emoji:'🎢',   color:'color-rojo',   desc:'Atracciones principales',             nota:'Lightning Lane para las más populares' },
-    { hora:H('almuerzo',hs), emoji:'🍽️',  color:'color-dorado', desc:'Almuerzo en el parque',              nota:'' },
-    { hora:'14:30',          emoji:'🎢',   color:'color-rojo',   desc:'Más atracciones — shows y desfiles', nota:'' },
-    { hora:'17:00',          emoji:'🎭',   color:'color-lila',   desc:'Show de tarde / Desfile',             nota:'Revisar calendario de espectáculos' },
-    { hora:H('cena',hs),     emoji:'🍽️',  color:'color-dorado', desc:'Cena',                              nota:'Reservar con anticipación' },
-    { hora:'21:00',          emoji:'🎇',   color:'color-rojo',   desc:'Show nocturno / Fuegos artificiales', nota:'Mejor posición 30 min antes' },
-  ]; }
-
-  function aDescanso(hs) { return [
-    { hora:'09:00',      emoji:'🌅', color:'color-dorado', desc:'Desayuno relajado en el hotel',  nota:'Sin apuro — día para recargar energías' },
-    { hora:'10:30',      emoji:'🏊', color:'color-azul',   desc:'Piscina o spa del hotel',        nota:'' },
-    { hora:'13:00',      emoji:'🍽️', color:'color-dorado',desc:'Almuerzo tranquilo',             nota:'' },
-    { hora:'15:00',      emoji:'😴', color:'color-verde',  desc:'Siesta / descanso',              nota:'Energías para los próximos parques' },
-    { hora:'17:00',      emoji:'🛍️', color:'color-lila',  desc:'Paseo o souvenir',              nota:'' },
-    { hora:H('cena',hs), emoji:'🍽️', color:'color-dorado',desc:'Cena',                         nota:'' },
-  ]; }
-
-  function aAcuatico(hs) { return [
-    { hora:'08:00',      emoji:'☀️', color:'color-dorado', desc:'Desayuno y preparación',         nota:'Traje de baño, protector solar, toalla' },
-    { hora:'09:00',      emoji:'💧', color:'color-azul',   desc:'Entrada al parque acuático',     nota:'Llegar temprano para las mejores atracciones' },
-    { hora:'12:30',      emoji:'🍔', color:'color-dorado', desc:'Almuerzo en el parque',          nota:'' },
-    { hora:'14:00',      emoji:'🌊', color:'color-azul',   desc:'Toboganes y atracciones',        nota:'' },
-    { hora:'17:00',      emoji:'🌿', color:'color-verde',  desc:'Regreso y descanso en el hotel', nota:'' },
-    { hora:H('cena',hs), emoji:'🍽️', color:'color-dorado',desc:'Cena',                         nota:'' },
-  ]; }
-
-  function aShopping(hs) { return [
-    { hora:'09:00',      emoji:'🌅', color:'color-dorado', desc:'Desayuno',                                nota:'' },
-    { hora:'10:00',      emoji:'🛍️', color:'color-lila',  desc:'Disney Springs — Shopping y exploración', nota:'World of Disney, tiendas temáticas' },
-    { hora:'12:30',      emoji:'🍽️', color:'color-dorado',desc:'Almuerzo en Disney Springs',             nota:'' },
-    { hora:'14:00',      emoji:'🛍️', color:'color-lila',  desc:'Últimas compras y souvenirs',            nota:'' },
-    { hora:'16:00',      emoji:'📸', color:'color-lila',   desc:'Fotos y recuerdos',                      nota:'' },
-    { hora:H('cena',hs), emoji:'🍽️', color:'color-dorado',desc:'Cena especial',                        nota:'Reservar con anticipación' },
-  ]; }
-
-  function aTrasladoHotel(nuevoH, hs) {
-    var n = (nuevoH && nuevoH.nombre) || 'nuevo hotel';
-    return [
-      { hora:'08:00',         emoji:'🌅', color:'color-dorado',  desc:'Desayuno tranquilo',                nota:'' },
-      { hora:H('checkout',hs),emoji:'🧳', color:'color-azul',    desc:'Check-out del hotel anterior',     nota:'Guardar equipaje en consigna si es necesario' },
-      { hora:'11:00',         emoji:'🌿', color:'color-verde',   desc:'Mañana libre — última recorrida',  nota:'' },
-      { hora:'13:00',         emoji:'🍽️', color:'color-dorado', desc:'Almuerzo',                        nota:'' },
-      { hora:'15:00',         emoji:'🚐', color:'color-naranja', desc:'Traslado a '+n,                   nota:'' },
-      { hora:'16:00',         emoji:'🏨', color:'color-azul',   desc:'Check-in en '+n,                  nota:'Explorá las instalaciones' },
-      { hora:H('cena',hs),    emoji:'🍽️', color:'color-dorado', desc:'Cena en el nuevo hotel',          nota:'' },
-    ];
+  function getParkData(nombre) {
+    for (var k in PARQUE_DATA) {
+      if (nombre.toLowerCase().indexOf(k.toLowerCase()) > -1) return PARQUE_DATA[k];
+    }
+    // Fallback por tipo de ticket genérico
+    var n = nombre.toLowerCase();
+    if (/park.to.park|universal.*base|universal.*3.park/i.test(n)) return PARQUE_DATA['Universal Studios'];
+    if (/hopper|disney.*base|wdw/i.test(n))                        return PARQUE_DATA['Magic Kingdom'];
+    if (/islands|ioa/i.test(n))                                     return PARQUE_DATA['Islands of Adventure'];
+    if (/epic.universe/i.test(n))                                   return PARQUE_DATA['Epic Universe'];
+    return DEFAULT_PARK;
   }
 
-  function aPlaya(hs) { return [
-    { hora:'08:30',      emoji:'🌅', color:'color-dorado',  desc:'Desayuno en el resort',          nota:'' },
-    { hora:'10:00',      emoji:'🏖️', color:'color-azul',   desc:'Playa / Pileta',                 nota:'Protector solar SPF 50+' },
-    { hora:'13:00',      emoji:'🍹', color:'color-dorado',  desc:'Almuerzo y cocteles',            nota:'' },
-    { hora:'15:00',      emoji:'🏊', color:'color-azul',    desc:'Deportes acuáticos o excursión', nota:'' },
-    { hora:'18:00',      emoji:'🌇', color:'color-naranja', desc:'Atardecer en la playa',          nota:'Momento fotográfico imperdible' },
-    { hora:H('cena',hs), emoji:'🍽️', color:'color-dorado', desc:'Cena',                          nota:'' },
-  ]; }
+  // ── Agendas por tipo de día ─────────────────────────────
 
-  function aCrucero(i, N, hs) {
-    if (i === 0) return [
-      { hora:'10:00',      emoji:'🚐', color:'color-naranja', desc:'Traslado al puerto',             nota:'' },
-      { hora:'12:00',      emoji:'🚢', color:'color-azul',   desc:'Embarque',                      nota:'Drill de seguridad obligatorio' },
-      { hora:'16:00',      emoji:'🌊', color:'color-azul',   desc:'Zarpe — ¡empieza la aventura!', nota:'' },
-      { hora:H('cena',hs), emoji:'🍽️', color:'color-dorado',desc:'Cena de bienvenida',            nota:'' },
-    ];
-    if (i === N - 1) return [
-      { hora:'07:00', emoji:'🌅', color:'color-dorado',  desc:'Último desayuno a bordo', nota:'' },
-      { hora:'09:00', emoji:'🧳', color:'color-azul',    desc:'Desembarque',              nota:'' },
-      { hora:'11:00', emoji:'🚐', color:'color-naranja', desc:'Traslado desde el puerto', nota:'' },
-    ];
-    return [
-      { hora:'08:00',      emoji:'🌅', color:'color-dorado', desc:'Desayuno a bordo',                    nota:'' },
-      { hora:'09:30',      emoji:'⚓', color:'color-azul',   desc:'Puerto del día / excursión terrestre', nota:'Confirmar con anticipación' },
-      { hora:'13:00',      emoji:'🍽️', color:'color-dorado',desc:'Almuerzo a bordo o en tierra',        nota:'' },
-      { hora:'15:00',      emoji:'🎭', color:'color-lila',   desc:'Entretenimiento a bordo',              nota:'' },
-      { hora:H('cena',hs), emoji:'🍽️', color:'color-dorado',desc:'Cena en el comedor temático',        nota:'Reservar con anticipación' },
-      { hora:'21:00',      emoji:'🎸', color:'color-lila',   desc:'Show nocturno a bordo',               nota:'' },
-    ];
+  function agendaLlegada(hotel, vuelo) {
+    var destino = hotel || 'el resort';
+    var vueloInfo = vuelo ? ('Vuelo ' + (vuelo.aerolinea||'') + ' desde ' + (vuelo.origen||'origen') + '. ') : '';
+    return {
+      manana:   vueloInfo + 'Traslado al aeropuerto y preparación del equipaje. Documentación lista: pasaportes, vouchers y confirmaciones impresas o en el celular.',
+      mediodia: 'Llegada y traslado a ' + destino + '. Check-in y primera recorrida por las instalaciones del resort. Ideal para orientarse y planificar los días siguientes.',
+      tarde:    'Tiempo libre para descansar del viaje, conocer la zona y hacer las primeras compras de snacks y essentials. Visita al centro comercial más cercano si hay energía.',
+      noche:    '🥂 Cena de bienvenida en el resort — el mejor comienzo para una aventura inolvidable. Brindis en familia por el viaje que empieza.'
+    };
   }
 
-  function aCiudad(hs) { return [
-    { hora:'08:30',      emoji:'☕', color:'color-dorado',  desc:'Desayuno en café local',               nota:'' },
-    { hora:'10:00',      emoji:'🏛️', color:'color-azul',   desc:'Visita cultural / Museo / Sitio histórico', nota:'' },
-    { hora:'13:00',      emoji:'🍽️', color:'color-dorado', desc:'Almuerzo — gastronomía típica',        nota:'' },
-    { hora:'15:00',      emoji:'🚶', color:'color-verde',   desc:'Barrio histórico / Tour a pie',        nota:'' },
-    { hora:'17:30',      emoji:'📸', color:'color-lila',    desc:'Fotos en los puntos icónicos',         nota:'' },
-    { hora:H('cena',hs), emoji:'🍽️', color:'color-dorado', desc:'Cena',                                nota:'' },
-  ]; }
+  function agendaDescanso(esPost, primerParcial) {
+    return {
+      manana:   '☀️ Mañana sin apuros. Desayuno tranquilo en el resort o en una cafetería cercana. Tiempo para cargar el celular, revisar fotos y planificar los próximos parques.',
+      mediodia: 'Día libre a elección: piscina del resort, paseo por Disney Springs o los alrededores del hotel. Sin filas, sin reloj — puro disfrute.',
+      tarde:    '🏊 Piscina o spa del resort. Perfecto momento para hidratarse, usar los toboganes y descansar los pies después de jornadas intensas en los parques.',
+      noche:    '🍽️ Cena en un restaurante diferente — explorar opciones fuera del parque. Disney Springs tiene decenas de opciones para todos los gustos y presupuestos.'
+    };
+  }
 
-  function aSalida(hs) { return [
-    { hora:'07:00',        emoji:'🌅', color:'color-dorado',  desc:'Desayuno final en el hotel',                     nota:'' },
-    { hora:H('checkout',hs),emoji:'🧳',color:'color-azul',    desc:'Check-out y preparación del equipaje',           nota:'' },
-    { hora:'',             emoji:'🌿', color:'color-verde',   desc:'Última mañana libre — fotos, recuerdos, compras', nota:'' },
-    { hora:'',             emoji:'🚐', color:'color-naranja', desc:'Traslado al aeropuerto',                          nota:'Llegar con 3 horas de anticipación' },
-    { hora:'',             emoji:'✈️', color:'color-navy',   desc:'Vuelo de regreso a casa 🏠',                      nota:'¡Hasta la próxima aventura! ✨' },
-  ]; }
+  function agendaTransicion(hotelActual, hotelNuevo) {
+    var nuevo = (hotelNuevo && hotelNuevo.nombre) || 'nuevo hotel';
+    return {
+      manana:   '🧳 Check-out de ' + (hotelActual||'el hotel actual') + '. Equipaje listo y facturado antes de las 11hs para evitar cargos adicionales.',
+      mediodia: 'Tiempo libre antes del check-in. Almuerzo de transición — ideal para visitar Disney Springs, City Walk o la zona comercial entre los resorts.',
+      tarde:    'Check-in en ' + nuevo + '. Primera recorrida por las instalaciones: piscina, restaurantes, servicios. Orientarse para aprovechar al máximo los días siguientes.',
+      noche:    '🌅 Cena en el nuevo resort. Cada hotel Disney/Universal tiene opciones gastronómicas únicas — una buena oportunidad para conocer la propuesta culinaria del lugar.'
+    };
+  }
 
-  // ══════════════════════════════════════════════════════════
-  //  generateItineraryDays(budget, opts) → Array<Dia>
-  // ══════════════════════════════════════════════════════════
+  function agendaShopping(hasSpring) {
+    return {
+      manana:   '🛍️ Mañana de compras en Disney Springs. World of Disney (la tienda más grande de temática Disney del mundo), LEGO, Uniqlo y decenas de opciones para todos los gustos.',
+      mediodia: 'Almuerzo en Disney Springs — The BOATHOUSE, STK, Morimoto o cualquiera de los más de 20 restaurantes disponibles. Sin reserva: Enzo\'s Hideaway funciona muy bien.',
+      tarde:    'Últimas compras de souvenirs y regalos. PhotoPass en los puntos icónicos del área. Aprovechando que no hay entradas de parque, el ritmo es mucho más tranquilo.',
+      noche:    '🎶 Música en vivo en los escenarios al aire libre de Disney Springs. Cierre mágico con compras, fotos y el ambiente único de este espacio sin costo de entrada.'
+    };
+  }
+
+  function agendaAcuatico(parqueNombre) {
+    var nombre = parqueNombre || 'parque acuático';
+    return {
+      manana:   '💧 Llegada a ' + nombre + ' al abrir (9am). Las primeras 2 horas son las más tranquilas — perfecto para los toboganes principales con esperas mínimas.',
+      mediodia: 'Almuerzo dentro del parque o en los alrededores. Aplicar protector solar FPS 50+ nuevamente. Hidratación constante — el calor de Florida es intenso.',
+      tarde:    '🌊 Río lento, área de olas y toboganes secundarios. Zona infantil si hay niños pequeños. Las tardes suelen ser más tranquilas cuando algunos visitantes se van.',
+      noche:    '🌅 Cierre del día con ducha en el hotel, descanso y cena liviana. Los parques acuáticos son físicamente demandantes — una noche tranquila es la mejor recompensa.'
+    };
+  }
+
+  function agendaPlaya() {
+    return {
+      manana:   '🌅 Desayuno con vista al mar. Primera sesión de playa desde las 9am — las horas de la mañana son las más frescas y la luz es perfecta para fotos.',
+      mediodia: 'Almuerzo en el beach bar del resort o en un restaurante local recomendado. Pausa bajo la sombra durante las horas de mayor intensidad solar.',
+      tarde:    '🏄 Deportes acuáticos: kayak, snorkeling, parasailing o simplemente disfrutar el mar. Las tardes en el Caribe tienen una luz y temperatura únicas.',
+      noche:    '🍹 Atardecer en la playa con cócteles de temporada. Cena en restaurante con vista al mar — el broche de oro para un día en el paraíso.'
+    };
+  }
+
+  function agendaCrucero(nDia, total, linea) {
+    if (nDia === 0) return {
+      manana:   '🚢 Traslado al puerto de embarque. Check-in del crucero y depósito del equipaje. Preparar documentación: pasaportes y tarjetas de embarque impresas.',
+      mediodia: 'Embarque en ' + (linea||'el crucero') + '. Exploración del barco: cubiertas, restaurantes, piscinas y entretenimiento. El camarote estará disponible desde las 13:30hs.',
+      tarde:    'Drill de seguridad obligatorio (muster drill). Zarpe y celebración en la cubierta principal. Primer avistamiento del océano desde el barco.',
+      noche:    '🥂 Cena de bienvenida en el comedor principal con el Capitán. Primera noche en alta mar — una experiencia única que vale cada momento.'
+    };
+    if (nDia === total - 1) return {
+      manana:   '🌅 Último desayuno a bordo. Equipaje debe estar en el pasillo antes de las 8am para el desembarque. Fotos finales en cubierta.',
+      mediodia: 'Desembarque organizado por grupos. Trámites de aduana y retirada de equipaje en el puerto. Traslado al hotel o aeropuerto según el itinerario.',
+      tarde:    'Tiempo libre post-crucero según los vuelos de regreso. Si hay tiempo: últimas compras en el puerto o almuerzo en tierra.',
+      noche:    '🏠 Regreso a casa con los mejores recuerdos. El mar, los puertos, las cenas: un viaje que va a quedar grabado para siempre.'
+    };
+    return {
+      manana:   '⚓ Puerto del día — desembarque para excursión o exploración libre. Las excursiones contratadas a bordo incluyen transporte y garantizan el regreso al barco.',
+      mediodia: 'Almuerzo en tierra o a bordo según la preferencia. El buffet del barco siempre es una opción confiable y variada.',
+      tarde:    '🎭 Regreso al crucero y entretenimiento a bordo: shows, casino, spas y actividades para todas las edades. El atardecer desde cubierta es imperdible.',
+      noche:    '🍽️ Cena en el comedor temático — cada noche tiene un ambiente diferente. Show nocturno en el teatro principal del barco.'
+    };
+  }
+
+  function agendaCiudad(ciudad, nDia) {
+    var c = ciudad || 'la ciudad';
+    return {
+      manana:   '🏛️ Visita al atractivo principal de ' + c + '. Museos, sitios históricos o barrios emblemáticos según los intereses del grupo. Guía local recomendado.',
+      mediodia: 'Almuerzo en restaurante local típico — la mejor manera de conocer la gastronomía auténtica. El mercado central suele ser una excelente opción.',
+      tarde:    '📸 Recorrida por los barrios históricos y puntos fotográficos icónicos. Shopping en tiendas locales: artesanías, productos típicos y recuerdos únicos.',
+      noche:    '🌆 Cena en restaurante recomendado con la cocina representativa de la región. Una copa en una terraza con vistas para cerrar el día de la mejor manera.'
+    };
+  }
+
+  function agendaSalida(hotel, vuelo) {
+    var hr = vuelo ? ('Vuelo ' + (vuelo.aerolinea||'') + ' a las ' + (vuelo.fechaVuelta||'') + '. ') : '';
+    return {
+      manana:   '🧳 ' + hr + 'Check-out de ' + (hotel||'el hotel') + '. Desayuno final y últimos momentos en el resort. Foto grupal de despedida en el lobby.',
+      mediodia: 'Traslado al aeropuerto con tiempo suficiente. Check-in del vuelo y trámites de migraciones. Últimas compras libres de impuestos en el duty free.',
+      tarde:    '✈️ Embarque y vuelo de regreso. Momento de revisar las fotos del viaje y recordar cada día vivido. El mejor vuelo es el que trae los mejores recuerdos.',
+      noche:    '🏠 Llegada a casa. El viaje termina, pero los recuerdos y la magia duran para siempre. ¡Ya es hora de empezar a planificar el próximo!'
+    };
+  }
+
+  // ── GENERADOR PRINCIPAL ─────────────────────────────────
   function generateItineraryDays(budget, opts) {
     if (!budget) return [];
     opts = opts || {};
@@ -238,27 +299,28 @@ var TASS_ItineraryGenerator = (function () {
     var N  = Math.round((d2 - d1) / 86400000) + 1;
     if (N < 1) return [];
 
-    var modo = opts.modo || detectModo(budget);
-    var hs   = opts.horarios || null;
+    var modo  = opts.modo || detectModo(budget);
+    var dest  = (budget.destino && budget.destino.nombre) || '';
+    var vuelo = budget.vuelo || null;
 
     // Hoteles
-    var aloj = (budget.alojamiento || []).map(function(a) {
-      return { nombre: a.nombre||'', checkin: a.checkin||f.fechaIn, checkout: a.checkout||f.fechaOut };
-    });
-    var primerHotel = aloj.length ? aloj[0].nombre : '';
-    var trasladoDates = {};
-    if (aloj.length > 1) {
-      aloj.forEach(function(a, i) { if (i > 0) trasladoDates[a.checkin] = a; });
-    }
+    var hotelInfo = getHotelTransitions(budget, f.fechaIn, f.fechaOut);
+    var aloj         = hotelInfo.aloj;
+    var transitions  = hotelInfo.transitions;
+    var primerHotel  = aloj.length ? aloj[0].nombre : '';
+    var ultimoHotel  = aloj.length ? aloj[aloj.length-1].nombre : primerHotel;
 
-    // Parques desde tickets del presupuesto
-    var parquesDisp = opts.parquesDisponibles ||
-      ['Magic Kingdom','EPCOT','Hollywood Studios','Animal Kingdom'];
-    var parques = buildParquesOrdenados(budget, parquesDisp);
+    // Parques
+    var parquesDisp = opts.parquesDisponibles || [];
+    var parques     = buildParquesOrdenados(budget, parquesDisp);
+
+    // Detectar Disney/Universal específicos
+    var hasDisney   = parques.some(function(p){ return DISNEY_ORDER.some(function(d){ return p.toLowerCase().indexOf(d.toLowerCase())>-1; }); });
+    var hasUniv     = parques.some(function(p){ return UNIV_ORDER.some(function(u){ return p.toLowerCase().indexOf(u.toLowerCase())>-1; }); });
 
     // Días especiales desde tickets
-    var tieneAgua     = opts.reglaAgua     !== undefined ? opts.reglaAgua     : hasTicket(budget, /water.?park|blizzard|aquatica/i);
-    var tieneShopping = opts.reglaShopping !== undefined ? opts.reglaShopping : hasTicket(budget, /springs|shopping/i);
+    var tieneAgua     = opts.reglaAgua     !== undefined ? opts.reglaAgua     : (budget.tickets||[]).some(function(t){ return /water.?park|blizzard|aquatica/i.test((t.parque||'')+(t.desc||'')); });
+    var tieneShopping = opts.reglaShopping !== undefined ? opts.reglaShopping : (budget.tickets||[]).some(function(t){ return /springs|shopping/i.test((t.parque||'')+(t.desc||'')); });
     var descansoEn    = opts.descansoEn || 2;
 
     var R = {
@@ -268,85 +330,143 @@ var TASS_ItineraryGenerator = (function () {
       descanso: opts.reglaDescanso !== false,
     };
 
-    var dias = [], pIdx = 0, dParque = 0, aguaUsado = false;
+    var dias       = [];
+    var pIdx       = 0;
+    var dParque    = 0;
+    var aguaUsado  = false;
 
     for (var i = 0; i < N; i++) {
-      var fecha = addDays(f.fechaIn, i);
+      var fecha     = addDays(f.fechaIn, i);
+      var esLlegada = (i === 0);
+      var esSalida  = (i === N - 1);
+
+      // Hotel actual en esta fecha
+      var hotelActual = primerHotel;
+      aloj.forEach(function(a) {
+        if (fecha >= a.checkin && fecha < a.checkout) hotelActual = a.nombre;
+      });
 
       var dia = {
+        dia:      i + 1,
+        fecha:    fecha,
+        fechaLabel: formatDateES(fecha),
+        tipo:     'parque',
+        titulo:   '',
+        parque:   null,
+        hotel:    hotelActual,
+        agenda:   { manana:'', mediodia:'', tarde:'', noche:'' },
+        nota:     '',
+        visible:  true,
+        // compatibilidad con renderer actual
         numero:      i + 1,
-        fecha:       fecha,
-        fechaLabel:  formatDateES(fecha),
-        tipo:        'parque',
-        titulo:      '',
         actividades: [],
-        nota:        '',
-        visible:     true,
       };
 
-      // Llegada
-      if (i === 0 && R.llegada) {
-        dia.tipo = 'llegada'; dia.titulo = 'Llegada y bienvenida';
-        dia.actividades = aLlegada(primerHotel, hs);
+      // ── LLEGADA ────────────────────────────────────────
+      if (esLlegada && R.llegada) {
+        dia.tipo   = 'llegada';
+        dia.titulo = '¡Bienvenidos! — Llegada y primer contacto con la magia';
+        dia.agenda = agendaLlegada(primerHotel, vuelo);
+        dia.actividades = agendaToActividades(dia.agenda, '✈️');
         dias.push(dia); continue;
       }
 
-      // Salida
-      if (i === N - 1 && R.salida) {
-        dia.tipo = 'salida'; dia.titulo = 'Día de salida';
-        dia.actividades = aSalida(hs);
+      // ── SALIDA ──────────────────────────────────────────
+      if (esSalida && R.salida) {
+        dia.tipo   = 'salida';
+        dia.titulo = 'Hasta pronto — Día de regreso a casa';
+        dia.agenda = agendaSalida(ultimoHotel, vuelo);
+        dia.actividades = agendaToActividades(dia.agenda, '🏠');
         dias.push(dia); continue;
       }
 
-      // Cambio de hotel
-      if (trasladoDates[fecha] && R.traslado) {
-        dia.tipo = 'traslado_hotel';
-        dia.titulo = 'Cambio de hotel → ' + trasladoDates[fecha].nombre;
-        dia.actividades = aTrasladoHotel(trasladoDates[fecha], hs);
+      // ── CAMBIO DE HOTEL (transición) ────────────────────
+      if (transitions[fecha] && R.traslado) {
+        var nuevoH = transitions[fecha];
+        var hotelPrev = '';
+        aloj.forEach(function(a) { if (a.checkout === fecha) hotelPrev = a.nombre; });
+        dia.tipo   = 'transicion';
+        dia.titulo = 'Cambio de resort — De Disney a Universal y nuevas aventuras';
+        dia.agenda = agendaTransicion(hotelPrev, nuevoH);
+        dia.actividades = agendaToActividades(dia.agenda, '🔄');
         dias.push(dia); continue;
       }
 
-      if (modo === 'disney') {
-        // Descanso intercalado
+      // ── MODOS ──────────────────────────────────────────
+      if (modo === 'disney' || modo === 'universal' || modo === 'combo') {
+
+        // Descanso cada N días de parque
         if (R.descanso && dParque > 0 && dParque % descansoEn === 0) {
-          dia.tipo = 'descanso'; dia.titulo = 'Día de descanso y relax';
-          dia.actividades = aDescanso(hs); dParque = 0;
+          dia.tipo   = 'descanso';
+          dia.titulo = 'Día de recarga — Descanso y tiempo libre';
+          dia.agenda = agendaDescanso(dParque > 0, parques[0]);
+          dia.actividades = agendaToActividades(dia.agenda, '😴');
+          dParque = 0;
           dias.push(dia); continue;
         }
-        // Acuático (1 vez, después del 2do parque)
+
+        // Parque acuático (1 vez, después del 2do parque normal)
         if (tieneAgua && !aguaUsado && pIdx === 2) {
-          dia.tipo = 'libre'; dia.titulo = 'Parque acuático';
-          dia.actividades = aAcuatico(hs); aguaUsado = true;
+          dia.tipo   = 'parque';
+          dia.titulo = 'Un día de agua — Parque acuático';
+          dia.parque = 'Parque acuático';
+          dia.agenda = agendaAcuatico(null);
+          dia.actividades = agendaToActividades(dia.agenda, '💧');
+          aguaUsado = true;
           dias.push(dia); continue;
         }
-        // Shopping (penúltimo día útil)
-        if (tieneShopping && i === N - 2) {
-          dia.tipo = 'libre'; dia.titulo = 'Disney Springs & Shopping';
-          dia.actividades = aShopping(hs);
+
+        // Shopping (penúltimo día útil, solo si no es salida)
+        if (tieneShopping && i === N - 2 && !esSalida) {
+          dia.tipo   = 'libre';
+          dia.titulo = 'Día de compras — Disney Springs & Shopping';
+          dia.agenda = agendaShopping(true);
+          dia.actividades = agendaToActividades(dia.agenda, '🛍️');
           dias.push(dia); continue;
         }
-        // Parque
-        var pn = parques.length ? parques[pIdx % parques.length] : 'Parque temático';
-        pIdx++; dParque++;
-        dia.tipo = 'parque'; dia.titulo = pn;
-        dia.actividades = aParque(pn, hs);
+
+        // Parque normal
+        var pn = parques.length ? parques[pIdx % parques.length] : (modo==='universal'?'Universal Studios':'Magic Kingdom');
+        var pkData = getParkData(pn);
+        pIdx++;
+        dParque++;
+        dia.tipo   = 'parque';
+        dia.titulo = pkData.emoji + ' Día en ' + pn;
+        dia.parque = pn;
+        dia.agenda = {
+          manana:   pkData.manana,
+          mediodia: pkData.mediodia,
+          tarde:    pkData.tarde,
+          noche:    pkData.noche,
+        };
+        dia.actividades = agendaToActividades(dia.agenda, pkData.emoji);
 
       } else if (modo === 'playa') {
-        dia.tipo = 'playa'; dia.titulo = 'Playa & relax';
-        dia.actividades = aPlaya(hs);
+        dia.tipo   = 'playa';
+        dia.titulo = '🏖️ Día de playa y relax total';
+        dia.agenda = agendaPlaya();
+        dia.actividades = agendaToActividades(dia.agenda, '🏖️');
 
       } else if (modo === 'crucero') {
-        dia.tipo = 'crucero';
-        dia.titulo = i===0 ? 'Embarque' : i===N-1 ? 'Desembarque' : 'Día en crucero / Puerto';
-        dia.actividades = aCrucero(i, N, hs);
+        var linea = (budget.crucero && budget.crucero.linea) || '';
+        dia.tipo   = 'crucero';
+        dia.titulo = i===0 ? '🚢 Embarque — ¡El crucero comienza!'
+                   : i===N-1 ? '🏠 Desembarque — Fin de la aventura en el mar'
+                   : '⚓ Día en crucero — Puerto ' + (i);
+        dia.agenda = agendaCrucero(i, N, linea);
+        dia.actividades = agendaToActividades(dia.agenda, '🚢');
 
       } else if (modo === 'ciudad') {
-        dia.tipo = 'ciudad'; dia.titulo = 'Exploración de la ciudad';
-        dia.actividades = aCiudad(hs);
+        dia.tipo   = 'ciudad';
+        dia.titulo = '🏛️ Exploración de ' + (dest||'la ciudad');
+        dia.agenda = agendaCiudad(dest, i);
+        dia.actividades = agendaToActividades(dia.agenda, '🏛️');
 
       } else {
-        dia.tipo = 'libre'; dia.titulo = 'Día ' + (i + 1);
-        dia.actividades = [{ hora:'09:00', emoji:'🌿', color:'color-verde', desc:'', nota:'' }];
+        dia.tipo   = 'libre';
+        dia.titulo = 'Día ' + (i+1) + ' — Tiempo libre';
+        dia.agenda = { manana:'', mediodia:'', tarde:'', noche:'' };
+        dia.actividades = [{ hora:'09:00', emoji:'🌿', color:'color-verde', desc:'Día libre a elección', nota:'' }];
       }
 
       dias.push(dia);
@@ -355,6 +475,33 @@ var TASS_ItineraryGenerator = (function () {
     return dias;
   }
 
+  // ── Convertir agenda a actividades (compatibilidad con renderer) ──
+  var FRANJAS = [
+    { key:'manana',   hora:'08:30', emoji:'🌅', color:'color-dorado',  label:'Mañana' },
+    { key:'mediodia', hora:'13:00', emoji:'🍽️', color:'color-dorado', label:'Mediodía' },
+    { key:'tarde',    hora:'15:00', emoji:'🌤️', color:'color-azul',   label:'Tarde' },
+    { key:'noche',    hora:'19:30', emoji:'🌙', color:'color-lila',   label:'Noche' },
+  ];
+
+  function agendaToActividades(agenda, baseEmoji) {
+    var acts = [];
+    FRANJAS.forEach(function(f) {
+      var texto = agenda[f.key];
+      if (!texto) return;
+      // Primera oración como desc, resto como nota
+      var dot = texto.indexOf('. ');
+      var desc = dot > -1 ? texto.substring(0, dot + 1) : texto;
+      var nota = dot > -1 ? texto.substring(dot + 2) : '';
+      // Usar emoji del texto si empieza con uno
+      var emo = f.emoji;
+      var match = texto.match(/^([\u{1F000}-\u{1FFFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}])/u);
+      if (match) { emo = match[1]; desc = texto.substring(match[1].length).trim(); }
+      acts.push({ hora: f.hora, emoji: emo, color: f.color, desc: desc, nota: nota });
+    });
+    return acts;
+  }
+
+  // ── API pública ─────────────────────────────────────────
   return {
     generateItineraryDays: generateItineraryDays,
     detectModo:            detectModo,
