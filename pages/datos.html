@@ -965,10 +965,10 @@ textarea{resize:vertical;min-height:80px;line-height:1.6}
         <div style="font-size:11px;color:#aaa;margin-top:10px;padding-left:28px">⏰ Atención después de las 16hs · it.integral.solution@gmail.com</div>
       </div>
 
-      <a id="email-link" class="btn-wa" href="#" target="_blank" style="background:#C8102E">
+      <button id="btn-enviar-email" class="btn-wa" style="background:#C8102E;border:none;cursor:pointer;width:100%;font-family:inherit;font-size:15px;padding:14px 28px;border-radius:8px;color:#fff;display:flex;align-items:center;justify-content:center;gap:10px">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-        Enviar consulta por email
-      </a>
+        <span id="btn-email-txt">Enviando consulta…</span>
+      </button>
     </div>
   </div>
 
@@ -1113,12 +1113,9 @@ textarea{resize:vertical;min-height:80px;line-height:1.6}
     if(com)t+='\n💬 '+com+'\n';
     t+='\n⏰ '+new Date().toLocaleString('es-AR',{timeZone:'America/Argentina/Buenos_Aires'});
 
-    // Construir cuerpo del email (texto plano)
-    var emailBody = t.replace(/\*/g,'').replace(/━/g,'-');
-    var mailtoHref = 'mailto:it.integral.solution@gmail.com'
-      + '?subject=' + encodeURIComponent('Nueva consulta MM Destinos Mágicos — ' + nom)
-      + '&body='    + encodeURIComponent(emailBody);
-    g('email-link').href = mailtoHref;
+    // Guardar datos para envío Web3Forms
+    window._emailSubject = 'Nueva consulta MM Destinos Mágicos — ' + nom;
+    window._emailBody    = t.replace(/\*/g,'').replace(/━/g,'-');
 
     var pn=nom.split(' ')[0];
     g('ok-nombre-sub').textContent='¡Gracias, '+pn+'! Ya estoy preparando tu cotización personalizada.';
@@ -1136,7 +1133,7 @@ textarea{resize:vertical;min-height:80px;line-height:1.6}
     document.querySelector('.pbar').style.display='none';
     g('ok-screen').style.display='block';
     window.scrollTo({top:0,behavior:'smooth'});
-    window.open(g('email-link').href,'_blank');
+    // El envío lo hace el botón btn-enviar-email via Web3Forms
 
     // ── Serializar clienteConsulta → presupuesto.html ──
     var clienteConsulta = {
@@ -1181,6 +1178,49 @@ textarea{resize:vertical;min-height:80px;line-height:1.6}
   g('men-m').addEventListener('click',function(){nMen=Math.max(0,nMen-1);g('n-men').textContent=nMen;buildEdades()});
   g('men-p').addEventListener('click',function(){nMen++;g('n-men').textContent=nMen;buildEdades()});
 })();
+
+// ── Web3Forms: envío automático ──────────────────────
+document.addEventListener('DOMContentLoaded', function(){
+  var btnEmail = document.getElementById('btn-enviar-email');
+  if(!btnEmail) return;
+
+  btnEmail.addEventListener('click', async function(){
+    var subject = window._emailSubject || 'Nueva consulta MM Destinos Mágicos';
+    var body    = window._emailBody    || '(sin contenido)';
+    var txtEl   = document.getElementById('btn-email-txt');
+
+    btnEmail.disabled = true;
+    if(txtEl) txtEl.textContent = 'Enviando…';
+
+    try {
+      var resp = await fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({
+          access_key: '685cc9cc-8d06-424a-8b40-c2ab1bc6c5fd',
+          subject:    subject,
+          message:    body,
+          from_name:  'MM Destinos Mágicos — Formulario Web',
+          replyto:    document.getElementById('inp-email') ? document.getElementById('inp-email').value : '',
+        })
+      });
+
+      var data = await resp.json();
+
+      if(data.success){
+        if(txtEl) txtEl.textContent = '✓ Consulta enviada correctamente';
+        btnEmail.style.background = '#1a7a40';
+      } else {
+        throw new Error(data.message || 'Error en el envío');
+      }
+    } catch(err) {
+      console.error('Web3Forms error:', err);
+      if(txtEl) txtEl.textContent = '✕ Error al enviar — intentá de nuevo';
+      btnEmail.style.background = '#888';
+      btnEmail.disabled = false;
+    }
+  });
+});
 </script>
 </body>
 </html>
