@@ -1115,7 +1115,36 @@ textarea{resize:vertical;min-height:80px;line-height:1.6}
 
     // Guardar datos para envío Web3Forms
     window._emailSubject = 'Nueva consulta MM Destinos Mágicos — ' + nom;
-    window._emailBody    = t.replace(/\*/g,'').replace(/━/g,'-');
+    var emailBody = t.replace(/\*/g,'').replace(/━/g,'-');
+
+    // Agregar link al presupuesto al final del email
+    var encodedCliente = TASS_Serializer.encodeData({
+      nombre: nom, wa: wa, email: email, pais: pais,
+      adultos: String(nAdu), menores: String(nMen),
+      edades: edArr.join(', '),
+      destinos: checkedAll('dest'),
+      mes: mes, dias: dias,
+      fechaIn: fIn, fechaOut: fOut,
+      flex: flex, presupuesto: presup,
+      grupo: grupo, primera: primera,
+      experiencia: exp, pasaporte: pas, visa: visa,
+      hotelDisney: hotelDis, hotelUniversal: hotelUni,
+      catHotel: catHotel, crucero: crucero,
+      actividades: checkedAll('actividades'),
+      transporte: transporte, comida: comida,
+      extras: checkedAll('extras'),
+      infoAdicional: infoAdicional,
+      comunicacion: comunicacion,
+      comentario: com,
+      timestamp: new Date().toISOString(),
+    });
+    var baseUrl = 'https://it-integral-solutions.github.io/MM-destinos-magicos/pages/presupuesto.html';
+    var presupLink = baseUrl + '?data=' + encodedCliente;
+    emailBody += '\n\n──────────────────────\n';
+    emailBody += '📋 ABRIR EN SISTEMA DE PRESUPUESTOS:\n';
+    emailBody += presupLink;
+
+    window._emailBody = emailBody;
 
     var pn=nom.split(' ')[0];
     g('ok-nombre-sub').textContent='¡Gracias, '+pn+'! Ya estoy preparando tu cotización personalizada.';
