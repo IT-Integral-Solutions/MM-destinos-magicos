@@ -10,6 +10,7 @@
 <script src="../config/agency-config.js"></script>
 <script src="../js/serializer.js"></script>
 <script src="../js/budget-builder.js"></script>
+<script src="../js/tass-state.js"></script>
 <style>
 /* ═══════════════════════════════════════════════════════
    VARIABLES & RESET
@@ -2141,6 +2142,7 @@ function collectBudgetData(){
   var descuento = subtotal * (desc_pct/100);
   var total = subtotal - descuento;
 
+  // --- build and return budget object ---
   return {
     meta: {
       numero: gv('cfg-numero'),
@@ -2720,6 +2722,8 @@ function goToItinerary(){
   recalc();
   var b = collectBudgetData();
   if(!b.cliente.nombre){ showToast('Ingresá el nombre del cliente primero'); return; }
+  // Guardar en localStorage para que itinerario lo tenga disponible
+  if(typeof TASS_State !== 'undefined') TASS_State.saveBudget(b);
   var ok = TASS_Serializer.navigateTo(
     AGENCY_CONFIG.paginas.itinerario,
     'budget',

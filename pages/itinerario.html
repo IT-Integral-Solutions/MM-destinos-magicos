@@ -9,6 +9,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="../config/agency-config.js"></script>
 <script src="../js/serializer.js"></script>
+<script src="../js/tass-state.js"></script>
 <script src="../js/itinerary-generator.js"></script>
 <style>
 /* ════════════════════════════════════════════════════════
@@ -991,169 +992,81 @@ function removeHotelConfig(id){
 //  GENERADOR PRINCIPAL
 // ═══════════════════════════════════════════════════════════
 function regenerarTodo(){
-  var fechaIn  = gv('cfg-fecha-in');
-  var fechaOut = gv('cfg-fecha-out');
-  if(!fechaIn || !fechaOut){ showToast('Ingresá las fechas del viaje'); return; }
+  // Usar budget de _budgetRef (cargado por loadFromBudget)
+  // o construir desde los campos del DOM como fallback
+  var budget = window._budgetRef || null;
 
-  var d1 = new Date(fechaIn+'T12:00:00');
-  var d2 = new Date(fechaOut+'T12:00:00');
-  var totalDias = Math.round((d2-d1)/(1000*60*60*24))+1;
-  if(totalDias<1){ showToast('Las fechas no son válidas'); return; }
-
-  var modo = gv('cfg-modo');
-
-  // Leer hoteles y sus transiciones
-  var hotelTransitions = [];
-  hotelesConfig.forEach(function(id){
-    var hcIn  = gv(id+'-in');
-    var hcOut = gv(id+'-out');
-    var hcNombre = gv(id+'-nombre');
-    if(hcIn && hcOut && hcNombre){
-      hotelTransitions.push({nombre:hcNombre, in:hcIn, out:hcOut});
-    }
-  });
-  // Si hay solo un hotel sin fechas exactas, usar fechas del viaje
-  if(!hotelTransitions.length){
-    hotelesConfig.forEach(function(id){
-      var hcNombre = gv(id+'-nombre');
-      if(hcNombre) hotelTransitions.push({nombre:hcNombre, in:fechaIn, out:fechaOut});
-    });
-  }
-
-  // Fechas de traslado de hotel (checkout de un hotel que no es el último día)
-  var trasladoDates = new Set();
-  if(hotelTransitions.length>1){
-    hotelTransitions.forEach(function(h, i){
-      if(i>0) trasladoDates.add(h.in); // día de check-in del hotel 2,3...
-    });
-  }
-
-  // Parques disponibles (desde checkboxes)
+  // Recopilar opciones desde el panel de configuración
   var parquesDisponibles = [];
   var pks = document.querySelectorAll('#parques-grid input[type=checkbox]:checked');
   pks.forEach(function(pk){ parquesDisponibles.push(pk.value); });
   if(!parquesDisponibles.length) parquesDisponibles = ['Magic Kingdom','EPCOT','Hollywood Studios','Animal Kingdom'];
 
-  // Si viene del budget, construir lista de parques expandida según tickets (cant × parque)
-  // para que los días de parque usen el parque correcto
-  var parquesOrdenados = TASS_ItineraryGenerator.buildParquesOrdenados(
-    window._budgetRef || {},
-    parquesDisponibles
-  );
+  var opts = {
+    modo:               gv('cfg-modo'),
+    parquesDisponibles: parquesDisponibles,
+    descansoEn:         parseInt(gv('cfg-descanso-cada'))||2,
+    reglaLlegada:       reglaOn('regla-llegada'),
+    reglaSalida:        reglaOn('regla-salida'),
+    reglaTraslado:      reglaOn('regla-traslado'),
+    reglaDescanso:      reglaOn('regla-descanso'),
+    reglaAgua:          reglaOn('regla-agua'),
+    reglaShopping:      reglaOn('regla-shopping'),
+    horarios: {
+      desayuno: gv('h-desayuno')||'08:00',
+      parque:   gv('h-parque')  ||'09:00',
+      almuerzo: gv('h-almuerzo')||'13:00',
+      cena:     gv('h-cena')    ||'19:30',
+      traslado: gv('h-traslado')||'10:00',
+      checkout: gv('h-checkout')||'11:00',
+    },
+  };
 
-  var descansoEn = parseInt(gv('cfg-descanso-cada'))||2;
-
-  var dias = [];
-  var parqueIdx = 0;
-  var diasDeParque = 0;
-
-  for(var i=0; i<totalDias; i++){
-    var fechaDia = addDays(fechaIn, i);
-    var esLlegada = (i === 0);
-    var esSalida  = (i === totalDias-1);
-    var esTraslado = trasladoDates.has(fechaDia);
-
-    var dia = {
-      numero: i+1,
-      fecha: fechaDia,
-      fechaLabel: formatDateES(fechaDia),
-      tipo: 'parque',
-      titulo: '',
-      actividades: [],
-      nota: '',
-      visible: true,
+  // Si no hay budget cargado, construir uno mínimo desde los campos del DOM
+  if(!budget){
+    var fi = gv('cfg-fecha-in');
+    var fo = gv('cfg-fecha-out');
+    if(!fi || !fo){ showToast('Ingresá las fechas del viaje'); return; }
+    budget = {
+      destino:      { nombre: gv('cfg-destino'), fechaIn: fi, fechaOut: fo },
+      alojamiento:  [],
+      tickets:      [],
+      ticketsActivos: true,
     };
-
-    // — REGLA LLEGADA
-    if(esLlegada && reglaOn('regla-llegada')){
-      dia.tipo = 'llegada';
-      dia.titulo = 'Llegada y bienvenida';
-      dia.actividades = buildActsLlegada(fechaDia, hotelTransitions);
-      dias.push(dia); continue;
+    // Agregar hoteles desde config panel
+    hotelesConfig.forEach(function(id){
+      var n = gv(id+'-nombre');
+      if(n) budget.alojamiento.push({
+        nombre:   n,
+        checkin:  gv(id+'-in'),
+        checkout: gv(id+'-out'),
+      });
+    });
+  } else {
+    // Si viene del budget pero el DOM tiene fechas distintas, usar las del DOM
+    var domFi = gv('cfg-fecha-in');
+    var domFo = gv('cfg-fecha-out');
+    if(domFi && domFo && (!budget.destino || !budget.destino.fechaIn)){
+      if(!budget.destino) budget.destino = {};
+      budget.destino.fechaIn  = domFi;
+      budget.destino.fechaOut = domFo;
     }
+  }
 
-    // — REGLA SALIDA
-    if(esSalida && reglaOn('regla-salida')){
-      dia.tipo = 'salida';
-      dia.titulo = 'Día de salida';
-      dia.actividades = buildActsSalida();
-      dias.push(dia); continue;
-    }
+  // Generar días usando el módulo
+  var dias = TASS_ItineraryGenerator.generateItineraryDays(budget, opts);
 
-    // — REGLA TRASLADO HOTEL
-    if(esTraslado && reglaOn('regla-traslado')){
-      var nuevoHotel = hotelTransitions.find(function(h){ return h.in===fechaDia; });
-      dia.tipo = 'traslado_hotel';
-      dia.titulo = 'Cambio de hotel' + (nuevoHotel ? ' → '+nuevoHotel.nombre : '');
-      dia.actividades = buildActsTraslado(nuevoHotel);
-      dias.push(dia); continue;
-    }
-
-    // — MODOS
-    if(modo === 'disney'){
-      // Descanso cada N parques
-      if(reglaOn('regla-descanso') && diasDeParque > 0 && diasDeParque % descansoEn === 0){
-        dia.tipo = 'descanso';
-        dia.titulo = 'Día de descanso y relax';
-        dia.actividades = buildActsDescanso();
-        diasDeParque = 0;
-        dias.push(dia); continue;
-      }
-      // Parque acuático (si tiene ticket o regla activada)
-      if(reglaOn('regla-agua') && parqueIdx === 2){
-        dia.tipo = 'libre';
-        dia.titulo = 'Parque acuático';
-        dia.actividades = buildActsAcuatico();
-        dias.push(dia); continue;
-      }
-      // Shopping / Disney Springs (penúltimo día útil)
-      if(reglaOn('regla-shopping') && i === totalDias-2 && !esSalida){
-        dia.tipo = 'libre';
-        dia.titulo = 'Disney Springs & Shopping';
-        dia.actividades = buildActsShopping();
-        dias.push(dia); continue;
-      }
-      // Parque normal — usar lista ordenada del budget si existe
-      var parqueNombre;
-      if(parqueIdx < parquesOrdenados.length){
-        parqueNombre = parquesOrdenados[parqueIdx];
-      } else {
-        parqueNombre = parquesDisponibles[parqueIdx % parquesDisponibles.length];
-      }
-      parqueIdx++;
-      diasDeParque++;
-      dia.tipo = 'parque';
-      dia.titulo = parqueNombre;
-      dia.actividades = buildActsParque(parqueNombre);
-
-    } else if(modo === 'playa'){
-      dia.tipo = 'playa';
-      dia.titulo = 'Playa & relax';
-      dia.actividades = buildActsPlaya(i);
-
-    } else if(modo === 'crucero'){
-      dia.tipo = 'crucero';
-      dia.titulo = i===0?'Embarque':i===totalDias-1?'Desembarque':'Día en crucero / Puerto';
-      dia.actividades = buildActsCrucero(i, totalDias);
-
-    } else if(modo === 'ciudad'){
-      dia.tipo = 'ciudad';
-      dia.titulo = 'Exploración de la ciudad';
-      dia.actividades = buildActsCiudad(i);
-
-    } else {
-      dia.tipo = 'libre';
-      dia.titulo = 'Día '+(i+1);
-      dia.actividades = [{hora:'09:00',emoji:'🌿',color:'color-verde',desc:'',nota:''}];
-    }
-
-    dias.push(dia);
+  if(!dias.length){
+    showToast('No se pudieron generar días — verificá las fechas');
+    return;
   }
 
   diasData = dias;
+  // Guardar en localStorage
+  if(typeof TASS_State !== 'undefined') TASS_State.saveItinerario(dias);
   renderDias();
   updateSummary();
-  showToast('Itinerario generado: '+totalDias+' días ✓');
+  showToast('Itinerario generado: '+dias.length+' días ✓');
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1856,7 +1769,8 @@ function decodeData(b64){
 }
 
 function loadFromBudget(){
-  var b = TASS_Serializer.readPageData('budget');
+  // Primero intentar desde URL, sino desde localStorage
+  var b = TASS_State.getBudgetFromUrl();
   if(!b) return false;
 
   var sv = function(id, val){
@@ -2038,31 +1952,26 @@ function loadFromBudget(){
     bcard.style.display = 'block';
   }
 
-  // ── 10. Generar itinerario automáticamente ────────────────
-  // Forzar TODOS los campos del DOM sincrónicamente
-  function setField(id, val){
+  // ── 10. Poblar campos del DOM ───────────────────────────
+  function setF(id, val){
     var el = document.getElementById(id);
     if(el && val !== undefined && val !== null && val !== '') el.value = val;
   }
-  setField('cfg-fecha-in',  fi);
-  setField('cfg-fecha-out', fo);
-  setField('cfg-nombre',    c.nombre  || '');
-  setField('cfg-destino',   d.nombre  || '');
-  setField('cfg-adultos',   c.adultos || '2');
-  setField('cfg-menores',   c.menores || '0');
-  setField('cfg-numero',    m.numero  || '');
+  setF('cfg-fecha-in',  fi);
+  setF('cfg-fecha-out', fo);
+  setF('cfg-nombre',    c.nombre  || '');
+  setF('cfg-destino',   d.nombre  || '');
+  setF('cfg-adultos',   c.adultos || '2');
+  setF('cfg-menores',   c.menores || '0');
+  setF('cfg-numero',    m.numero  || '');
 
   updateSummary();
 
+  // ── 11. Generar itinerario — _budgetRef ya está seteado ──
+  // regenerarTodo() lo leerá directamente de window._budgetRef
   if(fi && fo){
-    // Usar requestAnimationFrame para asegurar que el DOM se pintó
-    // antes de ejecutar regenerarTodo
-    requestAnimationFrame(function(){
-      requestAnimationFrame(function(){
-        regenerarTodo();
-        showToast('✓ Itinerario generado desde presupuesto');
-      });
-    });
+    regenerarTodo();
+    showToast('✓ Itinerario generado desde presupuesto');
   }
 
   return true;
