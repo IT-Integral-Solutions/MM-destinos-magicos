@@ -183,6 +183,25 @@ textarea{resize:vertical;min-height:60px;line-height:1.5}
 .btn-sm-outline:hover{border-color:var(--navy);color:var(--navy)}
 
 /* DÍA CARD */
+.dia-del-btn:hover{ background:rgba(200,16,46,.5)!important; }
+.dia-hd{ border-radius:var(--r) var(--r) 0 0; padding:14px 16px; transition:background .2s; }
+.dia-hd-top{ display:flex; align-items:center; gap:10px; }
+.dia-num-badge{ background:rgba(255,255,255,.2); color:#fff; font-size:10px; font-weight:800;
+  padding:4px 10px; border-radius:20px; flex-shrink:0; letter-spacing:.5px; }
+.dia-titulo-input{ flex:1; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.2);
+  border-radius:5px; padding:7px 10px; color:#fff; font-size:13px; font-weight:700;
+  font-family:'Nunito',sans-serif; }
+.dia-titulo-input::placeholder{ color:rgba(255,255,255,.5); }
+.dia-titulo-input:focus{ outline:none; background:rgba(255,255,255,.2); }
+.dia-fecha-label{ font-size:10px; color:rgba(255,255,255,.6); margin-top:2px; }
+.dia-hd-actions{ display:flex; align-items:center; gap:6px; flex-shrink:0; }
+.dia-tipo-select{ background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.2);
+  color:#fff; padding:5px 8px; border-radius:5px; font-size:11px; font-family:'Nunito',sans-serif; }
+.dia-toggle{ background:rgba(255,255,255,.12); border:none; cursor:pointer;
+  padding:5px 8px; border-radius:4px; color:#fff; font-size:11px; transition:all .15s; }
+.dia-card.collapsed .dia-body{ display:none; }
+.dia-body{ background:var(--crema); border-radius:0 0 var(--r) var(--r);
+  border:1px solid var(--gris-claro); border-top:none; }
 .dia-card{
   background:var(--blanco);border:1px solid var(--gris-claro);
   border-radius:12px;margin-bottom:14px;
@@ -650,7 +669,7 @@ textarea{resize:vertical;min-height:60px;line-height:1.5}
   <div class="tb-right">
     <button class="tb-btn tb-ghost" onclick="loadDemoData()">📋 Demo Disney</button>
     <button class="tb-btn tb-ghost" onclick="regenerarTodo()">🔄 Regenerar</button>
-    <button class="tb-btn tb-ghost" onclick="addDiaManual()">➕ Agregar día</button>
+    <button class="tb-btn tb-ghost" onclick="addDay()">➕ Agregar día</button>
     <button class="tb-btn tb-primary" onclick="openPreview()">👁 Vista previa PDF</button>
   </div>
 </div>
@@ -1061,7 +1080,7 @@ function regenerarTodo(){
     return;
   }
 
-  diasData = dias;
+  diasData = dias.map(function(d,i){ d.dia = i+1; return d; });
   // Guardar en localStorage
   if(typeof TASS_State !== 'undefined') TASS_State.saveItinerario(dias);
   renderDias();
@@ -1217,183 +1236,237 @@ function buildActsCiudad(nDia){
 // ═══════════════════════════════════════════════════════════
 //  RENDER
 // ═══════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════
+//  CONSTANTES UI
+// ══════════════════════════════════════════════════════════
+var TIPOS_DIA = [
+  { val:'llegada',      lbl:'🛬 Llegada'         },
+  { val:'parque',       lbl:'🎢 Parque'           },
+  { val:'descanso',     lbl:'😴 Descanso'         },
+  { val:'transicion',   lbl:'🔄 Transición hotel' },
+  { val:'salida',       lbl:'🛫 Salida'           },
+  { val:'libre',        lbl:'🌿 Libre'            },
+  { val:'playa',        lbl:'🏖️ Playa'           },
+  { val:'ciudad',       lbl:'🏛️ Ciudad'          },
+  { val:'crucero',      lbl:'🚢 Crucero'          },
+];
+
+var ALL_PARQUES = [
+  'Magic Kingdom','EPCOT','Hollywood Studios','Animal Kingdom','Typhoon Lagoon',
+  'Universal Studios','Islands of Adventure','Volcano Bay','Epic Universe',
+  'Disney Springs','SeaWorld Orlando','Busch Gardens Tampa','Discovery Cove',
+  'Kennedy Space Center','Otro',
+];
+
+var TIPO_COLORS = {
+  llegada:'#1a6b3c', parque:'#C8102E', descanso:'#7a5c1e',
+  transicion:'#1B2A4A', salida:'#1B2A4A', libre:'#2a6b3c',
+  playa:'#0369a1', ciudad:'#4338ca', crucero:'#0f4c6e',
+};
+
+// ══════════════════════════════════════════════════════════
+//  RENDER PRINCIPAL
+// ══════════════════════════════════════════════════════════
 function renderDias(){
   var container = document.getElementById('dias-container');
   container.innerHTML = '';
-
+  if(!diasData.length){
+    container.innerHTML = '<div style="text-align:center;padding:48px;color:var(--gris)"><div style="font-size:36px;margin-bottom:10px">📅</div><div style="font-size:14px;font-weight:700">Generá el itinerario desde el presupuesto</div></div>';
+    updateQuickStats();
+    return;
+  }
   diasData.forEach(function(dia, idx){
     if(!dia.visible) return;
     container.appendChild(buildDiaCard(dia, idx));
   });
-
+  // Botón agregar día al final
+  var addBtn = document.createElement('button');
+  addBtn.className = 'btn-add-row';
+  addBtn.style.cssText = 'width:100%;padding:14px;font-size:14px;margin-top:8px';
+  addBtn.innerHTML = '+ Agregar día';
+  addBtn.onclick = addDay;
+  container.appendChild(addBtn);
   updateQuickStats();
 }
 
+// ══════════════════════════════════════════════════════════
+//  CARD DE DÍA — completamente editable
+// ══════════════════════════════════════════════════════════
 function buildDiaCard(dia, idx){
+  var bgColor = TIPO_COLORS[dia.tipo] || '#1B2A4A';
   var card = document.createElement('div');
   card.className = 'dia-card';
-  card.id = 'dia-card-'+idx;
+  card.id = 'dia-card-' + idx;
   card.dataset.tipo = dia.tipo;
   card.dataset.idx  = idx;
 
-  // Encabezado
+  // ── HEADER ────────────────────────────────────────────
+  var tipoOpts = TIPOS_DIA.map(function(t){
+    return '<option value="'+t.val+'"'+(dia.tipo===t.val?' selected':'')+'>'+t.lbl+'</option>';
+  }).join('');
+
+  var parqueOpts = '<option value="">— Sin parque —</option>' +
+    ALL_PARQUES.map(function(p){
+      return '<option value="'+p+'"'+(dia.parque===p?' selected':'')+'>'+p+'</option>';
+    }).join('');
+
   var hd = document.createElement('div');
   hd.className = 'dia-hd';
-  hd.innerHTML = `
-    <div class="dia-hd-top">
-      <div class="dia-num-badge">Día ${dia.numero}</div>
-      <div class="dia-hd-centro">
-        <input class="dia-titulo-input" type="text" value="${dia.titulo}" placeholder="Título del día…"
-          onchange="diasData[${idx}].titulo=this.value">
-        <div class="dia-fecha-label">${dia.fechaLabel||''}</div>
-      </div>
-      <div class="dia-hd-actions">
-        <select class="dia-tipo-select" onchange="changeTipoDia(${idx},this.value)">
-          ${['llegada','libre','parque','descanso','traslado_hotel','salida','playa','ciudad','crucero','excursion'].map(function(t){
-            return `<option value="${t}" ${dia.tipo===t?'selected':''}>${tipoEmoji(t)} ${tipoLabel(t)}</option>`;
-          }).join('')}
-        </select>
-        <button class="dia-toggle" onclick="toggleDia(${idx})">▼</button>
-      </div>
-    </div>`;
-
+  hd.style.background = bgColor;
+  hd.innerHTML =
+    '<div class="dia-hd-top">'+
+      '<div class="dia-num-badge">Día '+dia.dia+'</div>'+
+      '<div class="dia-hd-centro">'+
+        '<input class="dia-titulo-input" type="text" value="'+escHtml(dia.titulo)+'" placeholder="Título del día…" '+
+          'onchange="updateDia('+idx+',\'titulo\',this.value)">'+
+        '<div class="dia-fecha-label">'+escHtml(dia.fechaLabel||dia.fecha||'')+'</div>'+
+      '</div>'+
+      '<div class="dia-hd-actions">'+
+        '<select class="dia-tipo-select" onchange="updateDia('+idx+',\'tipo\',this.value);renderDias()">'+tipoOpts+'</select>'+
+        '<button class="dia-toggle" onclick="toggleDia('+idx+')">▼</button>'+
+        '<button class="dia-del-btn" onclick="removeDay('+idx+')" title="Eliminar día" '+
+          'style="background:rgba(255,255,255,.15);border:none;cursor:pointer;padding:4px 8px;border-radius:4px;color:#fff;font-size:13px">✕</button>'+
+      '</div>'+
+    '</div>';
   card.appendChild(hd);
 
-  // Body
+  // ── BODY ──────────────────────────────────────────────
   var body = document.createElement('div');
   body.className = 'dia-body';
 
-  // Actividades
-  var actsWrap = document.createElement('div');
-  actsWrap.className = 'acts-wrap';
-  actsWrap.id = 'acts-wrap-'+idx;
-  dia.actividades.forEach(function(act, ai){
-    actsWrap.appendChild(buildActRow(act, idx, ai));
-  });
-  body.appendChild(actsWrap);
+  // Select de parque (visible solo cuando tipo=parque)
+  var parqueRow = document.createElement('div');
+  parqueRow.style.cssText = 'padding:10px 16px 0;display:' + (dia.tipo==='parque'?'block':'none');
+  parqueRow.id = 'parque-row-' + idx;
+  parqueRow.innerHTML =
+    '<div class="fld" style="margin-bottom:0">'+
+      '<label style="font-size:10px;font-weight:800;color:var(--navy);letter-spacing:.8px;text-transform:uppercase">Parque</label>'+
+      '<select onchange="updateDia('+idx+',\'parque\',this.value)">'+parqueOpts+'</select>'+
+    '</div>';
+  body.appendChild(parqueRow);
 
-  // Footer del body
-  var ft = document.createElement('div');
-  ft.className = 'dia-footer';
-  ft.innerHTML = `
-    <button class="btn-add-act" onclick="addActToDia(${idx})">+ Actividad</button>
-    <button class="btn-del-dia" onclick="removeDia(${idx})">🗑 Eliminar día</button>`;
-  body.appendChild(ft);
+  // Agenda — 4 franjas editables
+  var agendaWrap = document.createElement('div');
+  agendaWrap.style.cssText = 'padding:14px 16px';
+  var agenda = dia.agenda || { manana:'', mediodia:'', tarde:'', noche:'' };
+  var franjas = [
+    { key:'manana',   ico:'🌅', lbl:'Mañana'   },
+    { key:'mediodia', ico:'🍽️', lbl:'Mediodía' },
+    { key:'tarde',    ico:'☀️', lbl:'Tarde'    },
+    { key:'noche',    ico:'🌙', lbl:'Noche'    },
+  ];
+  var agendaHTML = franjas.map(function(fr){
+    var val = escHtml(agenda[fr.key]||'');
+    return '<div class="fld" style="margin-bottom:10px">'+
+      '<label style="font-size:10px;font-weight:800;color:var(--navy);letter-spacing:.8px;text-transform:uppercase">'+fr.ico+' '+fr.lbl+'</label>'+
+      '<textarea style="min-height:60px;font-size:12px;line-height:1.5" '+
+        'onchange="updateAgenda('+idx+',\''+fr.key+'\',this.value)">'+val+'</textarea>'+
+    '</div>';
+  }).join('');
+  agendaWrap.innerHTML = agendaHTML;
+  body.appendChild(agendaWrap);
 
-  // Nota del día
+  // Nota interna
   var notaWrap = document.createElement('div');
-  notaWrap.className = 'dia-nota-wrap';
-  notaWrap.innerHTML = `
-    <label>Notas del día (tips, sugerencias)</label>
-    <textarea placeholder="Tips para el agente, sugerencias para el cliente, recomendaciones del día…" 
-      onchange="diasData[${idx}].nota=this.value">${dia.nota||''}</textarea>`;
+  notaWrap.style.cssText = 'padding:0 16px 14px';
+  notaWrap.innerHTML =
+    '<div class="fld" style="margin-bottom:0">'+
+      '<label style="font-size:10px;font-weight:800;color:var(--navy);letter-spacing:.8px;text-transform:uppercase">💬 Nota interna</label>'+
+      '<textarea placeholder="Tips para el agente, sugerencias, logística…" style="min-height:44px;font-size:12px" '+
+        'onchange="updateDia('+idx+',\'nota\',this.value)">'+escHtml(dia.nota||'')+'</textarea>'+
+    '</div>';
   body.appendChild(notaWrap);
 
   card.appendChild(body);
   return card;
 }
 
-function buildActRow(act, diaIdx, actIdx){
-  var row = document.createElement('div');
-  row.className = 'act-row';
-  row.id = 'act-'+diaIdx+'-'+actIdx;
-
-  row.innerHTML = `
-    <div class="act-row-left" style="position:relative">
-      <input class="act-hora-input" type="text" value="${act.hora||''}" placeholder="--:--"
-        onchange="diasData[${diaIdx}].actividades[${actIdx}].hora=this.value" maxlength="5">
-      <button class="act-tipo-btn ${act.color||'color-verde'}"
-        onclick="openTipoPicker(event,${diaIdx},${actIdx})"
-        title="Cambiar tipo">${act.emoji||'🌿'}</button>
-    </div>
-    <div style="flex:1;display:flex;flex-direction:column;gap:2px">
-      <input class="act-desc-input" type="text" value="${(act.desc||'').replace(/"/g,'&quot;')}" placeholder="Descripción de la actividad…"
-        onchange="diasData[${diaIdx}].actividades[${actIdx}].desc=this.value">
-      <input class="act-nota-input" type="text" value="${(act.nota||'').replace(/"/g,'&quot;')}" placeholder="Nota / tip interno…"
-        onchange="diasData[${diaIdx}].actividades[${actIdx}].nota=this.value">
-    </div>
-    <div class="act-right">
-      <button class="act-rm" onclick="removeAct(${diaIdx},${actIdx})" title="Eliminar">✕</button>
-    </div>`;
-  return row;
+// ══════════════════════════════════════════════════════════
+//  HELPERS UI
+// ══════════════════════════════════════════════════════════
+function escHtml(s){
+  return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-// ═══════════════════════════════════════════════════════════
-//  TIPO PICKER
-// ═══════════════════════════════════════════════════════════
-var currentTipoTarget = null;
-function openTipoPicker(e, diaIdx, actIdx){
-  e.stopPropagation();
-  var pp = document.getElementById('tipo-popup');
-  pp.style.left = (e.clientX - 10) + 'px';
-  pp.style.top  = (e.clientY + 12) + 'px';
-  pp.classList.add('open');
-  currentTipoTarget = {diaIdx:diaIdx, actIdx:actIdx, btn:e.currentTarget};
-}
-function setTipoAct(emoji, tipo, color){
-  if(!currentTipoTarget) return;
-  var d = currentTipoTarget.diaIdx;
-  var a = currentTipoTarget.actIdx;
-  diasData[d].actividades[a].emoji = emoji;
-  diasData[d].actividades[a].tipo  = tipo;
-  diasData[d].actividades[a].color = color;
-  // Actualizar botón
-  currentTipoTarget.btn.textContent = emoji;
-  currentTipoTarget.btn.className = 'act-tipo-btn '+color;
-  document.getElementById('tipo-popup').classList.remove('open');
-  currentTipoTarget = null;
-}
-
-// ═══════════════════════════════════════════════════════════
-//  OPERACIONES DE DÍAS / ACTIVIDADES
-// ═══════════════════════════════════════════════════════════
-function addActToDia(idx){
-  diasData[idx].actividades.push({hora:'',emoji:'🌿',color:'color-verde',desc:'',nota:''});
-  var wrap = document.getElementById('acts-wrap-'+idx);
-  var ai = diasData[idx].actividades.length-1;
-  wrap.appendChild(buildActRow(diasData[idx].actividades[ai], idx, ai));
-}
-function removeAct(diaIdx, actIdx){
-  diasData[diaIdx].actividades.splice(actIdx,1);
-  renderDias();
-}
-function removeDia(idx){
-  if(!confirm('¿Eliminar este día?')) return;
-  diasData.splice(idx,1);
-  // Re-numerar
-  diasData.forEach(function(d,i){ d.numero=i+1; });
-  renderDias();
-}
 function toggleDia(idx){
   var card = document.getElementById('dia-card-'+idx);
-  card.classList.toggle('collapsed');
+  if(card) card.classList.toggle('collapsed');
 }
-function changeTipoDia(idx, tipo){
-  diasData[idx].tipo = tipo;
-  var card = document.getElementById('dia-card-'+idx);
-  card.dataset.tipo = tipo;
+
+// ══════════════════════════════════════════════════════════
+//  CRUD DE DÍAS
+// ══════════════════════════════════════════════════════════
+function updateDia(idx, field, val){
+  if(!diasData[idx]) return;
+  diasData[idx][field] = val;
+  // Si cambia tipo a parque, mostrar fila de parque
+  if(field === 'tipo'){
+    var row = document.getElementById('parque-row-'+idx);
+    if(row) row.style.display = val==='parque' ? 'block' : 'none';
+    var card = document.getElementById('dia-card-'+idx);
+    if(card){
+      card.dataset.tipo = val;
+      var hd = card.querySelector('.dia-hd');
+      if(hd) hd.style.background = TIPO_COLORS[val] || '#1B2A4A';
+    }
+  }
+  if(typeof TASS_State !== 'undefined') TASS_State.saveItinerario(diasData);
 }
-function addDiaManual(){
+
+function updateAgenda(idx, franja, val){
+  if(!diasData[idx]) return;
+  if(!diasData[idx].agenda) diasData[idx].agenda = {};
+  diasData[idx].agenda[franja] = val;
+  if(typeof TASS_State !== 'undefined') TASS_State.saveItinerario(diasData);
+}
+
+function removeDay(idx){
+  if(!confirm('¿Eliminar el día ' + (idx+1) + '?')) return;
+  diasData.splice(idx, 1);
+  renumerar();
+  renderDias();
+  if(typeof TASS_State !== 'undefined') TASS_State.saveItinerario(diasData);
+}
+
+function addDay(){
   var ultimo = diasData.length ? diasData[diasData.length-1] : null;
-  var fecha = ultimo ? addDays(ultimo.fecha,1) : '';
+  var fecha  = ultimo ? addDays(ultimo.fecha, 1) : '';
   diasData.push({
-    numero: diasData.length+1,
-    fecha: fecha,
-    fechaLabel: fecha ? formatDateES(fecha) : 'Día '+(diasData.length+1),
-    tipo:'libre', titulo:'Nuevo día',
-    actividades:[{hora:'09:00',emoji:'🌿',color:'color-verde',desc:'',nota:''}],
-    nota:'', visible:true,
+    dia:        diasData.length + 1,
+    numero:     diasData.length + 1,
+    fecha:      fecha,
+    fechaLabel: fecha ? formatDateES(fecha) : 'Día ' + (diasData.length+1),
+    tipo:       'libre',
+    titulo:     'Nuevo día',
+    parque:     null,
+    hotel:      '',
+    agenda:     { manana:'', mediodia:'', tarde:'', noche:'' },
+    nota:       '',
+    visible:    true,
+    actividades:[],
   });
   renderDias();
+  // Scroll al último
+  setTimeout(function(){
+    var last = document.getElementById('dia-card-'+(diasData.length-1));
+    if(last) last.scrollIntoView({ behavior:'smooth', block:'start' });
+  }, 100);
+  if(typeof TASS_State !== 'undefined') TASS_State.saveItinerario(diasData);
 }
+
+function renumerar(){
+  diasData.forEach(function(d, i){ d.dia = i+1; d.numero = i+1; });
+}
+
 function collapseAll(){
   diasData.forEach(function(_,i){
-    var c=document.getElementById('dia-card-'+i); if(c) c.classList.add('collapsed');
+    var c = document.getElementById('dia-card-'+i); if(c) c.classList.add('collapsed');
   });
 }
+
 function expandAll(){
   diasData.forEach(function(_,i){
-    var c=document.getElementById('dia-card-'+i); if(c) c.classList.remove('collapsed');
+    var c = document.getElementById('dia-card-'+i); if(c) c.classList.remove('collapsed');
   });
 }
 
