@@ -2040,10 +2040,27 @@ function loadFromBudget(){
 
   // ── 10. Generar itinerario automáticamente ────────────────
   if(fi && fo){
+    // Forzar los campos de fecha en el DOM antes de regenerar
+    var elFi = document.getElementById('cfg-fecha-in');
+    var elFo = document.getElementById('cfg-fecha-out');
+    if(elFi) elFi.value = fi;
+    if(elFo) elFo.value = fo;
+
+    // También nombre y destino
+    var elNom  = document.getElementById('cfg-nombre');
+    var elDest = document.getElementById('cfg-destino');
+    var elAdu  = document.getElementById('cfg-adultos');
+    var elMen  = document.getElementById('cfg-menores');
+    if(elNom  && c.nombre)  elNom.value  = c.nombre;
+    if(elDest && d.nombre)  elDest.value = d.nombre;
+    if(elAdu  && c.adultos) elAdu.value  = c.adultos;
+    if(elMen  && c.menores) elMen.value  = c.menores;
+
     setTimeout(function(){
+      updateSummary();
       regenerarTodo();
       showToast('✓ Itinerario generado desde presupuesto');
-    }, 500);
+    }, 300);
   }
 
   return true;

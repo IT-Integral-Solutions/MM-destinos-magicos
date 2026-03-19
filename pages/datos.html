@@ -1162,7 +1162,10 @@ textarea{resize:vertical;min-height:80px;line-height:1.6}
     document.querySelector('.pbar').style.display='none';
     g('ok-screen').style.display='block';
     window.scrollTo({top:0,behavior:'smooth'});
-    // El envío lo hace el botón btn-enviar-email via Web3Forms
+    // Enviar email automáticamente
+    setTimeout(function(){
+      if(typeof window._enviarEmail === 'function') window._enviarEmail();
+    }, 600);
 
     // ── Serializar clienteConsulta → presupuesto.html ──
     var clienteConsulta = {
@@ -1213,7 +1216,8 @@ document.addEventListener('DOMContentLoaded', function(){
   var btnEmail = document.getElementById('btn-enviar-email');
   if(!btnEmail) return;
 
-  btnEmail.addEventListener('click', async function(){
+  // Función de envío — se llama automáticamente
+  async function enviarEmail(){
     var subject = window._emailSubject || 'Nueva consulta MM Destinos Mágicos';
     var body    = window._emailBody    || '(sin contenido)';
     var txtEl   = document.getElementById('btn-email-txt');
@@ -1248,7 +1252,10 @@ document.addEventListener('DOMContentLoaded', function(){
       btnEmail.style.background = '#888';
       btnEmail.disabled = false;
     }
-  });
+  }
+
+  // Exponer para que enviar() la llame directamente
+  window._enviarEmail = enviarEmail;
 });
 </script>
 </body>
