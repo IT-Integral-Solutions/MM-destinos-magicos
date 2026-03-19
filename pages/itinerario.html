@@ -2186,50 +2186,60 @@ function copyLink(url){
 function shareByLink(){
   if(!diasData.length){ showToast('Generá el itinerario primero'); return; }
 
-  // Construir objeto para compartir
+  var btn = document.getElementById('btn-share');
+  if(btn){ btn.textContent = '⏳ Generando link…'; btn.disabled = true; }
+
+  // Construir objeto para compartir (solo campos necesarios, comprimido)
   var shareData = {
-    v:      '1',
-    nombre: gv('cfg-nombre') || (window._budgetRef && window._budgetRef.cliente && window._budgetRef.cliente.nombre) || 'Viajero',
-    destino:gv('cfg-destino')|| (window._budgetRef && window._budgetRef.destino && window._budgetRef.destino.nombre) || '',
-    numero: gv('cfg-numero') || '',
-    adultos:gv('cfg-adultos')|| '2',
-    menores:gv('cfg-menores')|| '0',
-    dias:   diasData.map(function(d){
+    v: '1',
+    nombre:  gv('cfg-nombre')  || (window._budgetRef && window._budgetRef.cliente && window._budgetRef.cliente.nombre) || 'Viajero',
+    destino: gv('cfg-destino') || (window._budgetRef && window._budgetRef.destino  && window._budgetRef.destino.nombre)  || '',
+    numero:  gv('cfg-numero')  || '',
+    adultos: gv('cfg-adultos') || '2',
+    menores: gv('cfg-menores') || '0',
+    dias: diasData.map(function(d){
       return {
-        dia:   d.dia,
-        fecha: d.fecha,
-        tipo:  d.tipo,
-        titulo:d.titulo,
-        parque:d.parque||null,
-        agenda:d.agenda||{},
-        nota:  d.nota||'',
+        d: d.dia,
+        f: d.fecha,
+        t: d.tipo,
+        ti: d.titulo,
+        p: d.parque||null,
+        ag: d.agenda||{},
+        n: d.nota||'',
       };
     }),
   };
 
+  function resetBtn(){ if(btn){ btn.textContent='🔗 Compartir link'; btn.disabled=false; } }
+
   try {
-    var encoded = btoa(unescape(encodeURIComponent(JSON.stringify(shareData))));
-    // Construir URL del viewer
-    var baseUrl = window.location.href.split('?')[0];
-    // Si estamos en GitHub Pages, construir URL al viewer
+    var encoded   = btoa(unescape(encodeURIComponent(JSON.stringify(shareData))));
+    var baseUrl   = window.location.href.split('?')[0];
     var viewerUrl = baseUrl.replace('itinerario.html','itinerario-viewer.html') + '?share=' + encoded;
 
-    // Copiar al portapapeles
-    if(navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(viewerUrl).then(function(){
-        showShareModal(viewerUrl);
-      }).catch(function(){
-        showShareModal(viewerUrl);
+    // Acortar con TinyURL
+    fetch('https://tinyurl.com/api-create.php?url=' + encodeURIComponent(viewerUrl))
+      .then(function(r){ return r.text(); })
+      .then(function(shortUrl){
+        shortUrl = shortUrl.trim();
+        if(!shortUrl || shortUrl.indexOf('http') !== 0) shortUrl = viewerUrl;
+        resetBtn();
+        showShareModal(shortUrl, viewerUrl);
+      })
+      .catch(function(){
+        // Si TinyURL falla, mostrar URL completa igual
+        resetBtn();
+        showShareModal(viewerUrl, viewerUrl);
       });
-    } else {
-      showShareModal(viewerUrl);
-    }
+
   } catch(e) {
+    resetBtn();
     showToast('Error al generar el link: ' + e.message);
   }
 }
 
-function showShareModal(url){
+function showShareModal(url, fullUrl){
+  if(!fullUrl) fullUrl = url;
   // Crear modal de compartir
   var existing = document.getElementById('share-modal');
   if(existing) existing.remove();

@@ -217,7 +217,19 @@ function render(data){
   document.getElementById('hero-nombre').textContent = data.nombre  || 'Viajero';
   document.getElementById('hero-num').textContent    = data.numero  || '';
 
-  var dias   = data.dias || [];
+  // Normalizar días — soporta formato comprimido {d,f,t,ti,p,ag,n} y formato completo
+  var dias = (data.dias || []).map(function(d){
+    return {
+      dia:       d.dia  || d.d  || 0,
+      fecha:     d.fecha|| d.f  || '',
+      fechaLabel:d.fechaLabel || '',
+      tipo:      d.tipo || d.t  || 'libre',
+      titulo:    d.titulo|| d.ti || '',
+      parque:    d.parque!==undefined ? d.parque : (d.p||null),
+      agenda:    d.agenda|| d.ag || {},
+      nota:      d.nota  || d.n  || '',
+    };
+  });
   var nPark  = dias.filter(function(d){ return d.tipo==='parque'; }).length;
   var nDesc  = dias.filter(function(d){ return d.tipo==='descanso'||d.tipo==='libre'; }).length;
   var pax    = parseInt(data.adultos||2) + parseInt(data.menores||0);
