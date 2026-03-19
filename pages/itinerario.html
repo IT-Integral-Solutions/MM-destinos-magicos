@@ -2039,28 +2039,30 @@ function loadFromBudget(){
   }
 
   // ── 10. Generar itinerario automáticamente ────────────────
+  // Forzar TODOS los campos del DOM sincrónicamente
+  function setField(id, val){
+    var el = document.getElementById(id);
+    if(el && val !== undefined && val !== null && val !== '') el.value = val;
+  }
+  setField('cfg-fecha-in',  fi);
+  setField('cfg-fecha-out', fo);
+  setField('cfg-nombre',    c.nombre  || '');
+  setField('cfg-destino',   d.nombre  || '');
+  setField('cfg-adultos',   c.adultos || '2');
+  setField('cfg-menores',   c.menores || '0');
+  setField('cfg-numero',    m.numero  || '');
+
+  updateSummary();
+
   if(fi && fo){
-    // Forzar los campos de fecha en el DOM antes de regenerar
-    var elFi = document.getElementById('cfg-fecha-in');
-    var elFo = document.getElementById('cfg-fecha-out');
-    if(elFi) elFi.value = fi;
-    if(elFo) elFo.value = fo;
-
-    // También nombre y destino
-    var elNom  = document.getElementById('cfg-nombre');
-    var elDest = document.getElementById('cfg-destino');
-    var elAdu  = document.getElementById('cfg-adultos');
-    var elMen  = document.getElementById('cfg-menores');
-    if(elNom  && c.nombre)  elNom.value  = c.nombre;
-    if(elDest && d.nombre)  elDest.value = d.nombre;
-    if(elAdu  && c.adultos) elAdu.value  = c.adultos;
-    if(elMen  && c.menores) elMen.value  = c.menores;
-
-    setTimeout(function(){
-      updateSummary();
-      regenerarTodo();
-      showToast('✓ Itinerario generado desde presupuesto');
-    }, 300);
+    // Usar requestAnimationFrame para asegurar que el DOM se pintó
+    // antes de ejecutar regenerarTodo
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){
+        regenerarTodo();
+        showToast('✓ Itinerario generado desde presupuesto');
+      });
+    });
   }
 
   return true;
