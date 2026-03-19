@@ -1,0 +1,2078 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MM Destinos Mágicos — Generador de Itinerario</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Nunito:wght@300;400;600;700;800;900&family=Dancing+Script:wght@600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="../config/agency-config.js"></script>
+<script src="../js/serializer.js"></script>
+<script src="../js/itinerary-generator.js"></script>
+<style>
+/* ════════════════════════════════════════════════════════
+   BASE
+════════════════════════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --rojo:#C8102E; --rojo-dark:#9e0c23; --rojo-soft:#f9e5e8; --rojo-mid:#f0b8c0;
+  --navy:#1B2A4A; --navy-mid:#243660; --navy-soft:#e8ecf5; --navy-ultra:#0f1c32;
+  --crema:#FAF7F2; --crema-dark:#F0EBE0;
+  --negro:#111; --gris:#666; --gris-claro:#e0ddd8;
+  --blanco:#fff;
+  --dorado:#C9A84C; --dorado-soft:#fdf6e3; --dorado-mid:#f0d890;
+  --verde:#1a7a40; --verde-soft:#e6f5ed; --verde-mid:#a8d5b5;
+  --azul:#2563eb; --azul-soft:#eff6ff;
+  --naranja:#ea580c; --naranja-soft:#fff7ed;
+  --lila:#7c3aed; --lila-soft:#f5f3ff;
+  --shadow-soft:0 4px 20px rgba(0,0,0,.07);
+  --shadow-med:0 8px 32px rgba(0,0,0,.12);
+  --shadow-hard:0 16px 48px rgba(0,0,0,.2);
+  --r:10px;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Nunito',sans-serif;background:#EDEBE6;min-height:100vh;color:var(--negro)}
+
+/* ════════════════════════════════════════════════════════
+   TOPBAR
+════════════════════════════════════════════════════════ */
+.topbar{
+  background:var(--navy-ultra);height:56px;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 24px;position:sticky;top:0;z-index:300;
+  box-shadow:0 2px 16px rgba(0,0,0,.35);
+}
+.tb-left{display:flex;align-items:center;gap:12px}
+.tb-seal{
+  width:38px;height:38px;border-radius:50%;background:var(--rojo);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Playfair Display',serif;font-size:14px;font-weight:900;color:#fff;
+  box-shadow:0 2px 8px rgba(200,16,46,.45);border:2px solid rgba(255,255,255,.15);
+}
+.tb-brand{font-size:13px;font-weight:800;color:#fff}
+.tb-brand span{font-weight:300;color:rgba(255,255,255,.5);font-size:11px;display:block;letter-spacing:.5px}
+.tb-right{display:flex;gap:9px;align-items:center}
+.tb-btn{
+  display:flex;align-items:center;gap:6px;
+  padding:7px 14px;border-radius:6px;font-family:'Nunito',sans-serif;
+  font-size:12px;font-weight:700;cursor:pointer;border:none;transition:all .15s;
+}
+.tb-ghost{background:rgba(255,255,255,.08);color:rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.12)}
+.tb-ghost:hover{background:rgba(255,255,255,.16)}
+.tb-primary{background:var(--rojo);color:#fff;box-shadow:0 2px 8px rgba(200,16,46,.4)}
+.tb-primary:hover{background:var(--rojo-dark)}
+.tb-gold{background:var(--dorado);color:#fff;box-shadow:0 2px 8px rgba(201,168,76,.4)}
+.tb-gold:hover{filter:brightness(1.05)}
+
+/* ════════════════════════════════════════════════════════
+   LAYOUT
+════════════════════════════════════════════════════════ */
+.layout{max-width:1160px;margin:0 auto;padding:24px 18px 80px;display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start}
+@media(max-width:860px){.layout{grid-template-columns:1fr}}
+
+/* ════════════════════════════════════════════════════════
+   LEFT PANEL — CONFIG
+════════════════════════════════════════════════════════ */
+.config-panel{position:sticky;top:72px}
+
+.config-card{
+  background:var(--blanco);border:1px solid var(--gris-claro);
+  border-radius:var(--r);overflow:hidden;margin-bottom:14px;
+  box-shadow:var(--shadow-soft);
+}
+.config-card-hd{
+  background:var(--navy);padding:14px 16px;
+  display:flex;align-items:center;gap:10px;
+  cursor:pointer;user-select:none;
+}
+.config-card-hd .ico{font-size:16px}
+.config-card-hd .ttl{
+  flex:1;font-size:13px;font-weight:800;color:#fff;letter-spacing:.02em;
+}
+.config-card-hd .chev{
+  font-size:10px;color:rgba(255,255,255,.6);
+  transition:transform .25s;
+}
+.config-card.open .chev{transform:rotate(180deg)}
+.config-card-body{display:none;padding:14px 16px;background:var(--crema);border-top:1px solid rgba(0,0,0,.06)}
+.config-card.open .config-card-body{display:block;animation:fd .2s ease}
+@keyframes fd{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
+
+/* Cliente summary */
+.cliente-pill{
+  background:var(--navy);border-radius:var(--r);
+  padding:16px 18px;margin-bottom:14px;
+  box-shadow:var(--shadow-med);
+}
+.cp-name{font-family:'Playfair Display',serif;font-size:19px;font-weight:700;color:#fff;margin-bottom:4px}
+.cp-meta{font-size:11.5px;color:rgba(255,255,255,.6);line-height:1.8}
+.cp-dest{font-size:13px;font-weight:800;color:var(--rojo);margin-top:6px}
+.cp-dates{font-size:11px;color:rgba(255,255,255,.5)}
+
+/* Fld */
+.fld{margin-bottom:12px}
+.fld>label{display:block;font-size:10px;font-weight:800;color:var(--navy);margin-bottom:5px;letter-spacing:1px;text-transform:uppercase}
+input[type=text],input[type=number],input[type=date],input[type=time],select,textarea{
+  width:100%;padding:8px 11px;border-radius:6px;border:1.5px solid var(--gris-claro);
+  font-family:'Nunito',sans-serif;font-size:12.5px;color:var(--negro);background:var(--blanco);
+  outline:none;transition:border-color .15s,box-shadow .15s;
+}
+input:focus,select:focus,textarea:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(27,42,74,.08)}
+select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='7'%3E%3Cpath d='M1 1l4.5 4.5L10 1' stroke='%23aaa' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
+textarea{resize:vertical;min-height:60px;line-height:1.5}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* Parques disponibles */
+.parques-grid{display:flex;flex-direction:column;gap:6px}
+.parque-item{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 10px;border-radius:7px;
+  border:1.5px solid var(--gris-claro);
+  background:var(--blanco);cursor:pointer;
+  transition:all .14s;
+}
+.parque-item:hover{border-color:var(--navy);background:var(--navy-soft)}
+.parque-item input{width:14px;height:14px;accent-color:var(--navy);flex-shrink:0}
+.parque-item label{flex:1;font-size:12px;font-weight:700;cursor:pointer;color:var(--negro)}
+.parque-item .parque-emoji{font-size:16px;flex-shrink:0}
+
+/* Reglas automáticas */
+.regla-row{
+  display:flex;align-items:center;gap:8px;
+  padding:9px 10px;border-radius:7px;
+  border:1.5px solid var(--gris-claro);background:var(--blanco);
+  margin-bottom:7px;
+}
+.regla-switch{
+  width:34px;height:18px;border-radius:9px;background:var(--gris-claro);
+  position:relative;flex-shrink:0;cursor:pointer;transition:background .2s;
+}
+.regla-switch::after{
+  content:'';position:absolute;top:2px;left:2px;
+  width:14px;height:14px;border-radius:50%;background:#fff;
+  box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform .2s;
+}
+.regla-row.on .regla-switch{background:var(--verde)}
+.regla-row.on .regla-switch::after{transform:translateX(16px)}
+.regla-texto{flex:1;font-size:11.5px;font-weight:600;color:var(--gris)}
+.regla-row.on .regla-texto{color:var(--negro)}
+
+/* ════════════════════════════════════════════════════════
+   DÍAS ITINERARIO
+════════════════════════════════════════════════════════ */
+.dias-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:18px;flex-wrap:wrap;gap:10px;
+}
+.dias-h-title{
+  font-family:'Playfair Display',serif;
+  font-size:24px;font-weight:700;color:var(--navy);
+}
+.dias-h-sub{font-size:12px;color:var(--gris);margin-top:2px}
+.dias-h-actions{display:flex;gap:8px}
+.btn-sm{
+  padding:7px 13px;border-radius:6px;font-family:'Nunito',sans-serif;
+  font-size:11.5px;font-weight:700;cursor:pointer;border:none;
+  transition:all .15s;display:flex;align-items:center;gap:5px;
+}
+.btn-sm-navy{background:var(--navy);color:#fff}
+.btn-sm-navy:hover{background:var(--navy-mid)}
+.btn-sm-outline{background:none;border:1.5px solid var(--gris-claro);color:var(--gris)}
+.btn-sm-outline:hover{border-color:var(--navy);color:var(--navy)}
+
+/* DÍA CARD */
+.dia-card{
+  background:var(--blanco);border:1px solid var(--gris-claro);
+  border-radius:12px;margin-bottom:14px;
+  box-shadow:var(--shadow-soft);overflow:hidden;
+  transition:box-shadow .2s;
+}
+.dia-card:hover{box-shadow:var(--shadow-med)}
+
+/* Tipo de día — color del encabezado */
+.dia-card[data-tipo="llegada"] .dia-hd{background:#14532d}
+.dia-card[data-tipo="libre"] .dia-hd{background:#166534}
+.dia-card[data-tipo="parque"] .dia-hd-tipo-badge{background:var(--rojo)}
+.dia-card[data-tipo="descanso"] .dia-hd{background:#92400e}
+.dia-card[data-tipo="traslado_hotel"] .dia-hd{background:#1e3a5f}
+.dia-card[data-tipo="salida"] .dia-hd{background:#1B2A4A}
+.dia-card[data-tipo="playa"] .dia-hd{background:#0369a1}
+.dia-card[data-tipo="ciudad"] .dia-hd{background:#4338ca}
+.dia-card[data-tipo="crucero"] .dia-hd{background:#0f4c6e}
+.dia-card[data-tipo="excursion"] .dia-hd{background:#065f46}
+
+/* Encabezado del día */
+.dia-hd{
+  background:var(--navy);padding:0;
+  display:flex;flex-direction:column;
+}
+.dia-hd-top{
+  display:flex;align-items:center;
+  padding:12px 18px 10px;gap:12px;
+}
+.dia-num-badge{
+  background:rgba(255,255,255,.15);
+  border:1.5px solid rgba(255,255,255,.2);
+  border-radius:8px;
+  padding:4px 10px;
+  font-size:10px;font-weight:900;
+  color:rgba(255,255,255,.9);letter-spacing:1.5px;text-transform:uppercase;
+  flex-shrink:0;
+}
+.dia-hd-centro{flex:1;min-width:0}
+.dia-titulo-input{
+  background:transparent;border:none;outline:none;
+  width:100%;
+  font-family:'Playfair Display',serif;
+  font-size:19px;font-weight:700;color:#fff;
+  padding:0;cursor:text;
+}
+.dia-titulo-input::placeholder{color:rgba(255,255,255,.4)}
+.dia-titulo-input:focus{background:rgba(255,255,255,.07);border-radius:4px;padding:2px 6px}
+.dia-fecha-label{font-size:10.5px;color:rgba(255,255,255,.55);margin-top:1px}
+.dia-hd-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+
+/* Toggle colapsar día */
+.dia-toggle{
+  width:26px;height:26px;border-radius:50%;
+  background:rgba(255,255,255,.12);
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;color:#fff;cursor:pointer;
+  transition:transform .25s,background .15s;border:none;
+}
+.dia-card.collapsed .dia-toggle{transform:rotate(-90deg)}
+.dia-card.collapsed .dia-toggle:hover{background:rgba(255,255,255,.25)}
+.dia-toggle:hover{background:rgba(255,255,255,.22)}
+
+/* Badge tipo */
+.dia-tipo-select{
+  background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.2);
+  border-radius:20px;padding:4px 10px;
+  font-family:'Nunito',sans-serif;font-size:10.5px;font-weight:700;
+  color:rgba(255,255,255,.9);cursor:pointer;appearance:none;
+  background-image:none;
+}
+.dia-tipo-select option{background:var(--negro);color:#fff}
+
+/* Barra inferior del header — chips */
+.dia-hd-chips{
+  display:flex;gap:6px;flex-wrap:wrap;
+  padding:0 18px 12px;
+}
+.dia-hd-chip{
+  background:rgba(255,255,255,.12);
+  border:1px solid rgba(255,255,255,.15);
+  padding:3px 9px;border-radius:12px;
+  font-size:10px;font-weight:700;color:rgba(255,255,255,.85);
+}
+
+/* Cuerpo del día */
+.dia-body{
+  padding:0;
+  border-top:1px solid var(--gris-claro);
+}
+.dia-card.collapsed .dia-body{display:none}
+
+/* Actividades */
+.acts-wrap{padding:14px 18px 0}
+.act-row{
+  display:flex;align-items:flex-start;gap:9px;
+  padding:8px 0;
+  border-bottom:1px solid #f0ede8;
+  position:relative;
+}
+.act-row:last-child{border-bottom:none}
+.act-row-left{display:flex;align-items:center;gap:7px;flex-shrink:0;padding-top:2px}
+.act-hora-input{
+  width:56px;padding:5px 6px;
+  border:1.5px solid var(--gris-claro);border-radius:5px;
+  font-size:11.5px;font-family:'Nunito',sans-serif;font-weight:700;
+  color:var(--navy);text-align:center;background:var(--blanco);
+}
+.act-hora-input:focus{border-color:var(--navy);outline:none}
+.act-tipo-btn{
+  width:28px;height:28px;border-radius:7px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;cursor:pointer;border:none;
+  flex-shrink:0;transition:transform .15s;
+  background:var(--crema);
+}
+.act-tipo-btn:hover{transform:scale(1.1)}
+.act-tipo-btn.color-rojo{background:var(--rojo-soft)}
+.act-tipo-btn.color-verde{background:var(--verde-soft)}
+.act-tipo-btn.color-azul{background:var(--azul-soft)}
+.act-tipo-btn.color-dorado{background:var(--dorado-soft)}
+.act-tipo-btn.color-naranja{background:var(--naranja-soft)}
+.act-tipo-btn.color-lila{background:var(--lila-soft)}
+.act-tipo-btn.color-navy{background:var(--navy-soft)}
+
+/* Desc input del acto */
+.act-desc-input{
+  flex:1;padding:6px 10px;
+  border:1.5px solid transparent;border-radius:6px;
+  font-size:13px;font-family:'Nunito',sans-serif;font-weight:600;
+  color:var(--negro);background:transparent;
+  transition:all .15s;
+}
+.act-desc-input:hover{background:var(--crema);border-color:var(--gris-claro)}
+.act-desc-input:focus{background:var(--blanco);border-color:var(--navy);outline:none;box-shadow:0 0 0 3px rgba(27,42,74,.06)}
+.act-desc-input::placeholder{color:#ccc;font-weight:400}
+
+.act-nota-input{
+  flex:1;padding:4px 8px;
+  border:1.5px solid transparent;border-radius:5px;
+  font-size:11px;font-family:'Nunito',sans-serif;font-weight:400;
+  color:var(--gris);background:transparent;font-style:italic;
+  transition:all .15s;
+}
+.act-nota-input:hover{background:var(--crema);border-color:var(--gris-claro)}
+.act-nota-input:focus{background:var(--blanco);border-color:var(--gris-claro);outline:none}
+.act-nota-input::placeholder{color:#ddd}
+
+.act-right{display:flex;align-items:center;gap:4px;flex-shrink:0;padding-top:2px}
+.act-rm{background:none;border:none;color:#ddd;cursor:pointer;font-size:13px;padding:3px 5px;border-radius:4px;transition:color .15s}
+.act-rm:hover{color:var(--rojo)}
+
+/* TIPO PICKER POPOVER */
+.tipo-picker{
+  position:absolute;left:0;top:36px;z-index:100;
+  background:var(--blanco);border:1px solid var(--gris-claro);
+  border-radius:10px;padding:10px;
+  box-shadow:var(--shadow-med);
+  display:none;
+  grid-template-columns:repeat(5,1fr);
+  gap:6px;min-width:240px;
+}
+.tipo-picker.open{display:grid}
+.tipo-opt{
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:6px 4px;border-radius:7px;cursor:pointer;
+  transition:background .14s;font-size:10px;font-weight:700;color:var(--gris);
+  text-align:center;
+}
+.tipo-opt:hover{background:var(--navy-soft);color:var(--navy)}
+.tipo-opt .emoji{font-size:18px}
+
+/* NOTA EXTRA por día */
+.dia-nota-wrap{
+  padding:10px 18px 14px;
+  border-top:1px solid #f0ede8;
+}
+.dia-nota-wrap textarea{
+  width:100%;border-radius:7px;border:1.5px solid var(--gris-claro);
+  padding:9px 12px;font-size:12px;font-family:'Nunito',sans-serif;
+  color:var(--gris);background:var(--crema);
+  resize:vertical;min-height:44px;outline:none;transition:border-color .15s;
+}
+.dia-nota-wrap textarea:focus{border-color:var(--navy);background:var(--blanco)}
+.dia-nota-wrap label{font-size:9.5px;font-weight:800;color:#bbb;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px}
+
+/* Botones add actividad */
+.dia-footer{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 18px 14px;
+}
+.btn-add-act{
+  background:none;border:1.5px dashed var(--gris-claro);
+  color:var(--gris);padding:6px 13px;border-radius:6px;
+  font-family:'Nunito',sans-serif;font-size:11.5px;font-weight:700;
+  cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:5px;
+}
+.btn-add-act:hover{border-color:var(--navy);color:var(--navy);background:var(--navy-soft)}
+
+/* Botón eliminar día */
+.btn-del-dia{
+  background:none;border:none;color:#ccc;font-size:12px;font-weight:700;
+  cursor:pointer;padding:5px 9px;border-radius:5px;transition:all .15s;
+  font-family:'Nunito',sans-serif;
+}
+.btn-del-dia:hover{background:var(--rojo-soft);color:var(--rojo)}
+
+/* RESUMEN QUICK */
+.quick-stats{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:10px;
+  margin-bottom:18px;
+}
+.qs-item{
+  background:var(--blanco);border:1px solid var(--gris-claro);
+  border-radius:9px;padding:12px 14px;text-align:center;
+  box-shadow:var(--shadow-soft);
+}
+.qs-num{font-family:'Playfair Display',serif;font-size:24px;font-weight:700;color:var(--navy)}
+.qs-lbl{font-size:10px;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:.8px;margin-top:2px}
+
+/* ════════════════════════════════════════════════════════
+   PDF DOCUMENT
+════════════════════════════════════════════════════════ */
+#pdf-document{
+  width:595px;background:#fff;
+  font-family:'Nunito',sans-serif;
+}
+
+/* Portada itinerario */
+.pdf-it-cover{
+  min-height:841px;display:flex;flex-direction:column;
+  background:var(--navy);position:relative;overflow:hidden;
+}
+.pdf-it-cover-deco1{
+  position:absolute;top:0;right:0;
+  width:280px;height:280px;
+  background:var(--rojo);opacity:.15;border-radius:50%;
+  transform:translate(40%,-40%);
+}
+.pdf-it-cover-deco2{
+  position:absolute;bottom:80px;left:-60px;
+  width:200px;height:200px;
+  background:rgba(255,255,255,.04);border-radius:50%;
+}
+.pdf-it-cover-deco3{
+  position:absolute;top:50%;left:50%;
+  width:400px;height:400px;
+  border:1px solid rgba(255,255,255,.04);border-radius:50%;
+  transform:translate(-50%,-50%);
+}
+.pdf-it-cover-hd{
+  padding:28px 36px 0;
+  display:flex;align-items:center;justify-content:space-between;
+  position:relative;z-index:2;
+}
+.pdf-it-cover-agency{display:flex;align-items:center;gap:11px}
+.pdf-it-cover-seal{
+  width:50px;height:50px;border-radius:50%;background:var(--rojo);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Playfair Display',serif;font-size:17px;font-weight:900;color:#fff;
+  box-shadow:0 4px 14px rgba(200,16,46,.4);
+}
+.pdf-it-cover-agency-name{font-size:13px;font-weight:800;color:#fff}
+.pdf-it-cover-agency-sub{font-size:9px;font-weight:600;color:rgba(255,255,255,.5);letter-spacing:2px;text-transform:uppercase}
+.pdf-it-cover-badge{
+  background:rgba(200,16,46,.2);border:1px solid rgba(200,16,46,.4);
+  padding:5px 12px;border-radius:20px;
+  font-size:9px;font-weight:800;color:rgba(255,255,255,.9);letter-spacing:2px;text-transform:uppercase;
+}
+.pdf-it-cover-body{
+  flex:1;padding:40px 36px 28px;
+  display:flex;flex-direction:column;justify-content:center;
+  position:relative;z-index:2;
+}
+.pdf-it-cover-eyebrow{
+  font-size:10px;font-weight:800;letter-spacing:3px;text-transform:uppercase;
+  color:rgba(255,255,255,.5);margin-bottom:10px;
+}
+.pdf-it-cover-title{
+  font-family:'Playfair Display',serif;
+  font-size:42px;font-weight:900;color:#fff;line-height:1.05;margin-bottom:6px;
+}
+.pdf-it-cover-script{
+  font-family:'Dancing Script',cursive;
+  font-size:24px;color:rgba(255,255,255,.6);margin-bottom:30px;
+}
+.pdf-it-cover-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:32px}
+.pdf-it-cover-chip{
+  background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);
+  padding:6px 14px;border-radius:20px;
+  font-size:11px;font-weight:700;color:rgba(255,255,255,.9);
+}
+.pdf-it-cover-info{
+  display:grid;grid-template-columns:1fr 1fr;gap:12px;
+}
+.pdf-it-cover-info-item{
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);
+  border-radius:10px;padding:14px 16px;
+}
+.pdf-it-cover-info-label{font-size:8.5px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:4px}
+.pdf-it-cover-info-val{font-size:13px;font-weight:700;color:#fff;line-height:1.3}
+.pdf-it-cover-ft{
+  padding:16px 36px;border-top:1px solid rgba(255,255,255,.08);
+  display:flex;justify-content:space-between;align-items:center;
+  position:relative;z-index:2;
+  font-size:10.5px;color:rgba(255,255,255,.5);
+}
+
+/* Página de días */
+.pdf-it-page{
+  background:#fff;padding:32px 36px;
+  min-height:841px;
+  border-top:3px solid var(--rojo);
+  position:relative;
+}
+.pdf-it-page+.pdf-it-page{border-top:none}
+
+/* Encabezado página */
+.pdf-it-ph{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:22px;padding-bottom:14px;
+  border-bottom:2px solid #f0ede8;
+}
+.pdf-it-ph-left{}
+.pdf-it-ph-agency{font-size:8.5px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--rojo);margin-bottom:2px}
+.pdf-it-ph-client{font-size:14px;font-weight:800;color:var(--navy)}
+.pdf-it-ph-right{text-align:right}
+.pdf-it-ph-num{font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--navy)}
+.pdf-it-ph-sub{font-size:10px;color:var(--gris)}
+
+/* DÍA en PDF */
+.pdf-dia{margin-bottom:18px;border-radius:10px;overflow:hidden;border:1px solid #e8e5e0}
+.pdf-dia-hd{
+  padding:10px 16px;
+  display:flex;align-items:center;gap:12px;
+}
+.pdf-dia-hd-num{
+  background:rgba(255,255,255,.2);
+  border:1px solid rgba(255,255,255,.25);
+  border-radius:6px;padding:3px 8px;
+  font-size:9px;font-weight:900;letter-spacing:1.5px;color:#fff;text-transform:uppercase;
+  flex-shrink:0;
+}
+.pdf-dia-hd-info{flex:1}
+.pdf-dia-hd-title{font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:#fff}
+.pdf-dia-hd-fecha{font-size:10px;color:rgba(255,255,255,.6);margin-top:1px}
+.pdf-dia-hd-tag{
+  font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;
+  background:rgba(255,255,255,.15);border-radius:10px;padding:3px 8px;color:rgba(255,255,255,.85);
+}
+
+/* Colores de encabezado por tipo */
+.pdf-dia[data-tipo="llegada"] .pdf-dia-hd{background:#14532d}
+.pdf-dia[data-tipo="libre"] .pdf-dia-hd{background:#166534}
+.pdf-dia[data-tipo="parque"] .pdf-dia-hd{background:var(--rojo)}
+.pdf-dia[data-tipo="descanso"] .pdf-dia-hd{background:#92400e}
+.pdf-dia[data-tipo="traslado_hotel"] .pdf-dia-hd{background:#1e3a5f}
+.pdf-dia[data-tipo="salida"] .pdf-dia-hd{background:#1B2A4A}
+.pdf-dia[data-tipo="playa"] .pdf-dia-hd{background:#0369a1}
+.pdf-dia[data-tipo="ciudad"] .pdf-dia-hd{background:#4338ca}
+.pdf-dia[data-tipo="crucero"] .pdf-dia-hd{background:#0f4c6e}
+.pdf-dia[data-tipo="excursion"] .pdf-dia-hd{background:#065f46}
+
+/* Actividades en PDF */
+.pdf-dia-body{padding:10px 16px 12px;background:#fff}
+.pdf-act-row{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:6px 0;border-bottom:1px solid #f5f2ee;
+}
+.pdf-act-row:last-child{border-bottom:none}
+.pdf-act-hora{
+  font-size:11px;font-weight:800;color:var(--navy);
+  min-width:42px;flex-shrink:0;padding-top:1px;font-family:'Nunito',sans-serif;
+}
+.pdf-act-emoji{font-size:13px;flex-shrink:0;padding-top:1px}
+.pdf-act-text{flex:1}
+.pdf-act-desc{font-size:12px;font-weight:700;color:var(--negro);line-height:1.3}
+.pdf-act-nota{font-size:10.5px;color:var(--gris);font-style:italic;margin-top:1px}
+
+/* Nota del día PDF */
+.pdf-dia-nota{
+  background:#fdf6e3;border-left:3px solid var(--dorado);
+  padding:8px 12px;margin:0 16px 12px;border-radius:0 6px 6px 0;
+  font-size:11px;color:#555;font-style:italic;line-height:1.5;
+}
+
+/* Footer de página PDF */
+.pdf-it-page-ft{
+  position:absolute;bottom:20px;left:36px;right:36px;
+  display:flex;justify-content:space-between;align-items:center;
+  font-size:9.5px;color:#bbb;border-top:1px solid #f0ede8;padding-top:8px;
+}
+
+/* Gracias */
+.pdf-it-gracias{
+  background:var(--navy);margin:28px -36px -32px;
+  padding:22px 36px;text-align:center;
+}
+.pdf-it-gracias-big{
+  font-family:'Dancing Script',cursive;
+  font-size:28px;font-weight:700;color:var(--rojo);margin-bottom:4px;
+}
+.pdf-it-gracias-sub{
+  font-size:9px;font-weight:800;letter-spacing:3px;text-transform:uppercase;
+  color:rgba(255,255,255,.5);margin-bottom:12px;
+}
+.pdf-it-gracias-contacts{
+  display:flex;justify-content:center;gap:22px;
+  font-size:11px;color:rgba(255,255,255,.6);
+}
+
+/* ════════════════════════════════════════════════════════
+   MODAL
+════════════════════════════════════════════════════════ */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.8);
+  z-index:1000;display:none;align-items:flex-start;justify-content:center;
+  overflow-y:auto;padding:24px 14px;
+}
+.modal-overlay.open{display:flex}
+.modal-box{
+  background:#fff;border-radius:12px;width:100%;max-width:660px;
+  box-shadow:var(--shadow-hard);overflow:hidden;margin:auto;
+}
+.modal-hd{
+  background:var(--navy);padding:15px 20px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.modal-hd-title{font-size:14px;font-weight:800;color:#fff}
+.modal-hd-actions{display:flex;gap:8px}
+.modal-btn{padding:7px 14px;border-radius:6px;font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;cursor:pointer;border:none;transition:all .15s}
+.modal-btn-close{background:rgba(255,255,255,.12);color:#fff}
+.modal-btn-dl{background:var(--rojo);color:#fff}
+.modal-content{padding:20px;background:#e8e5e0;overflow-x:auto}
+
+/* Toast */
+.toast{
+  position:fixed;bottom:22px;right:22px;
+  background:var(--negro);color:#fff;padding:11px 18px;border-radius:8px;
+  font-size:13px;font-weight:700;box-shadow:var(--shadow-hard);
+  transform:translateY(70px);opacity:0;transition:all .3s;z-index:9999;
+}
+.toast.show{transform:translateY(0);opacity:1}
+
+/* Tipo-picker popover styles */
+.tipo-popup{
+  position:fixed;z-index:500;
+  background:var(--blanco);border:1px solid var(--gris-claro);
+  border-radius:10px;padding:10px;
+  box-shadow:var(--shadow-hard);
+  display:none;
+  grid-template-columns:repeat(4,48px);gap:6px;
+}
+.tipo-popup.open{display:grid}
+</style>
+</head>
+<body>
+
+<!-- ════════════ TOPBAR ════════════ -->
+<div class="topbar">
+  <div class="tb-left">
+    <div class="tb-seal">MM</div>
+    <div class="tb-brand">MM Destinos Mágicos <span>Generador de Itinerario</span></div>
+  </div>
+  <div class="tb-right">
+    <button class="tb-btn tb-ghost" onclick="loadDemoData()">📋 Demo Disney</button>
+    <button class="tb-btn tb-ghost" onclick="regenerarTodo()">🔄 Regenerar</button>
+    <button class="tb-btn tb-ghost" onclick="addDiaManual()">➕ Agregar día</button>
+    <button class="tb-btn tb-primary" onclick="openPreview()">👁 Vista previa PDF</button>
+  </div>
+</div>
+
+<!-- ════════════ TIPO PICKER POPUP ════════════ -->
+<div class="tipo-popup" id="tipo-popup">
+  <div class="tipo-opt" onclick="setTipoAct('🏰','parque','color-rojo')"><span class="emoji">🏰</span>Parque</div>
+  <div class="tipo-opt" onclick="setTipoAct('🌿','libre','color-verde')"><span class="emoji">🌿</span>Libre</div>
+  <div class="tipo-opt" onclick="setTipoAct('✈️','vuelo','color-navy')"><span class="emoji">✈️</span>Vuelo</div>
+  <div class="tipo-opt" onclick="setTipoAct('🚐','traslado','color-naranja')"><span class="emoji">🚐</span>Traslado</div>
+  <div class="tipo-opt" onclick="setTipoAct('🏨','hotel','color-azul')"><span class="emoji">🏨</span>Hotel</div>
+  <div class="tipo-opt" onclick="setTipoAct('🍽️','cena','color-dorado')"><span class="emoji">🍽️</span>Cena</div>
+  <div class="tipo-opt" onclick="setTipoAct('🎢','atraccion','color-rojo')"><span class="emoji">🎢</span>Atracción</div>
+  <div class="tipo-opt" onclick="setTipoAct('🛍️','shopping','color-lila')"><span class="emoji">🛍️</span>Shopping</div>
+  <div class="tipo-opt" onclick="setTipoAct('🏖️','playa','color-azul')"><span class="emoji">🏖️</span>Playa</div>
+  <div class="tipo-opt" onclick="setTipoAct('🚢','crucero','color-azul')"><span class="emoji">🚢</span>Crucero</div>
+  <div class="tipo-opt" onclick="setTipoAct('😴','descanso','color-verde')"><span class="emoji">😴</span>Descanso</div>
+  <div class="tipo-opt" onclick="setTipoAct('📸','foto','color-lila')"><span class="emoji">📸</span>Foto</div>
+  <div class="tipo-opt" onclick="setTipoAct('🎭','show','color-rojo')"><span class="emoji">🎭</span>Show</div>
+  <div class="tipo-opt" onclick="setTipoAct('💧','acuatico','color-azul')"><span class="emoji">💧</span>Acuático</div>
+  <div class="tipo-opt" onclick="setTipoAct('🌮','comida','color-naranja')"><span class="emoji">🌮</span>Comida</div>
+  <div class="tipo-opt" onclick="setTipoAct('⭐','especial','color-dorado')"><span class="emoji">⭐</span>Especial</div>
+</div>
+
+<!-- ════════════ LAYOUT ════════════ -->
+<div class="layout">
+
+  <!-- ══ LEFT PANEL ══ -->
+  <div class="config-panel">
+
+    <!-- Cliente summary -->
+    <div class="cliente-pill">
+      <div class="cp-name" id="cp-name">Cargando cliente…</div>
+      <div class="cp-meta" id="cp-meta">—</div>
+      <div class="cp-dest" id="cp-dest">—</div>
+      <div class="cp-dates" id="cp-dates">—</div>
+    </div>
+
+    <!-- Resumen presupuesto cargado -->
+    <div id="budget-summary-card" style="display:none;background:#fff;border:1px solid #e0ddd8;border-radius:10px;overflow:hidden;margin-bottom:14px;box-shadow:0 4px 20px rgba(0,0,0,.07)">
+      <div style="background:var(--verde);padding:10px 14px;display:flex;align-items:center;gap:8px">
+        <span style="font-size:14px">✅</span>
+        <span style="font-size:12px;font-weight:800;color:#fff;letter-spacing:.02em">Datos del presupuesto cargados</span>
+      </div>
+      <div id="budget-summary-body" style="padding:10px 14px;font-size:11.5px;line-height:1.9;color:#444"></div>
+    </div>
+    <div class="config-card open" id="cc-viaje">
+      <div class="config-card-hd" onclick="toggleCC('cc-viaje')">
+        <span class="ico">✈️</span><span class="ttl">Datos del viaje</span><span class="chev">▼</span>
+      </div>
+      <div class="config-card-body">
+        <div class="fld"><label>Destino principal</label>
+          <input type="text" id="cfg-destino" placeholder="Ej: Orlando – Walt Disney World" oninput="updateSummary()">
+        </div>
+        <div class="g2">
+          <div class="fld"><label>Fecha entrada</label>
+            <input type="date" id="cfg-fecha-in" onchange="regenerarTodo()">
+          </div>
+          <div class="fld"><label>Fecha salida</label>
+            <input type="date" id="cfg-fecha-out" onchange="regenerarTodo()">
+          </div>
+        </div>
+        <div class="fld"><label>Nombre cliente</label>
+          <input type="text" id="cfg-nombre" placeholder="Ej: Familia González" oninput="updateSummary()">
+        </div>
+        <div class="g2">
+          <div class="fld"><label>Adultos</label>
+            <input type="number" id="cfg-adultos" value="2" min="1">
+          </div>
+          <div class="fld"><label>Menores</label>
+            <input type="number" id="cfg-menores" value="2" min="0">
+          </div>
+        </div>
+        <div class="fld"><label>N° de referencia</label>
+          <input type="text" id="cfg-numero" placeholder="MM-2026-001">
+        </div>
+      </div>
+    </div>
+
+    <!-- Modo destino -->
+    <div class="config-card open" id="cc-modo">
+      <div class="config-card-hd" onclick="toggleCC('cc-modo')">
+        <span class="ico">🗺️</span><span class="ttl">Tipo de viaje</span><span class="chev">▼</span>
+      </div>
+      <div class="config-card-body">
+        <div class="fld"><label>Modo de generación</label>
+          <select id="cfg-modo" onchange="onModoChange()">
+            <option value="disney">🏰 Disney / Parques temáticos</option>
+            <option value="playa">🏖️ Playa / Resort</option>
+            <option value="crucero">🚢 Crucero</option>
+            <option value="ciudad">🏛️ Ciudad / Cultural</option>
+            <option value="libre">✈️ Viaje libre (manual)</option>
+          </select>
+        </div>
+        <!-- Disney config -->
+        <div id="cfg-disney-wrap">
+          <div class="fld"><label>Parques disponibles</label>
+            <div class="parques-grid" id="parques-grid">
+              <div class="parque-item"><input type="checkbox" id="pk-mk" value="Magic Kingdom" checked><label for="pk-mk">🏰 Magic Kingdom</label></div>
+              <div class="parque-item"><input type="checkbox" id="pk-ep" value="EPCOT" checked><label for="pk-ep">🌍 EPCOT</label></div>
+              <div class="parque-item"><input type="checkbox" id="pk-hs" value="Hollywood Studios" checked><label for="pk-hs">🎬 Hollywood Studios</label></div>
+              <div class="parque-item"><input type="checkbox" id="pk-ak" value="Animal Kingdom" checked><label for="pk-ak">🦁 Animal Kingdom</label></div>
+              <div class="parque-item"><input type="checkbox" id="pk-uni" value="Universal Studios"><label for="pk-uni">🎭 Universal Studios</label></div>
+              <div class="parque-item"><input type="checkbox" id="pk-iowa" value="Islands of Adventure"><label for="pk-iowa">⚡ Islands of Adventure</label></div>
+              <div class="parque-item"><input type="checkbox" id="pk-bb" value="Blizzard Beach"><label for="pk-bb">❄️ Blizzard Beach</label></div>
+              <div class="parque-item"><input type="checkbox" id="pk-ds" value="Disney Springs"><label for="pk-ds">🛍️ Disney Springs</label></div>
+            </div>
+          </div>
+          <div class="fld"><label>Descanso cada N días de parques</label>
+            <select id="cfg-descanso-cada">
+              <option value="2">Cada 2 días de parques</option>
+              <option value="3">Cada 3 días de parques</option>
+              <option value="4">Cada 4 días (sin descanso forzado)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hoteles / transiciones -->
+    <div class="config-card open" id="cc-hoteles">
+      <div class="config-card-hd" onclick="toggleCC('cc-hoteles')">
+        <span class="ico">🏨</span><span class="ttl">Hoteles y transiciones</span><span class="chev">▼</span>
+      </div>
+      <div class="config-card-body">
+        <div id="hoteles-config-list"></div>
+        <button class="btn-sm btn-sm-outline" style="width:100%;margin-top:6px" onclick="addHotelConfig()">+ Agregar hotel</button>
+      </div>
+    </div>
+
+    <!-- Reglas inteligentes -->
+    <div class="config-card open" id="cc-reglas">
+      <div class="config-card-hd" onclick="toggleCC('cc-reglas')">
+        <span class="ico">⚙️</span><span class="ttl">Reglas automáticas</span><span class="chev">▼</span>
+      </div>
+      <div class="config-card-body">
+        <div class="regla-row on" id="regla-llegada" onclick="toggleRegla('regla-llegada')">
+          <div class="regla-switch"></div>
+          <div class="regla-texto">Día 1 = Llegada y descanso (libre de parques)</div>
+        </div>
+        <div class="regla-row on" id="regla-descanso" onclick="toggleRegla('regla-descanso')">
+          <div class="regla-switch"></div>
+          <div class="regla-texto">Intercalar día de descanso cada N parques</div>
+        </div>
+        <div class="regla-row on" id="regla-traslado" onclick="toggleRegla('regla-traslado')">
+          <div class="regla-switch"></div>
+          <div class="regla-texto">Día de traslado de hotel = libre de parques</div>
+        </div>
+        <div class="regla-row on" id="regla-salida" onclick="toggleRegla('regla-salida')">
+          <div class="regla-switch"></div>
+          <div class="regla-texto">Último día = Solo mañana libre / vuelo de salida</div>
+        </div>
+        <div class="regla-row" id="regla-agua" onclick="toggleRegla('regla-agua')">
+          <div class="regla-switch"></div>
+          <div class="regla-texto">Incluir día de parque acuático</div>
+        </div>
+        <div class="regla-row" id="regla-shopping" onclick="toggleRegla('regla-shopping')">
+          <div class="regla-switch"></div>
+          <div class="regla-texto">Incluir día de shopping / Disney Springs</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hora de inicio por tipo -->
+    <div class="config-card" id="cc-horarios">
+      <div class="config-card-hd" onclick="toggleCC('cc-horarios')">
+        <span class="ico">🕐</span><span class="ttl">Horarios por defecto</span><span class="chev">▼</span>
+      </div>
+      <div class="config-card-body">
+        <div class="g2">
+          <div class="fld"><label>Desayuno</label><input type="time" id="h-desayuno" value="08:00"></div>
+          <div class="fld"><label>Apertura parque</label><input type="time" id="h-parque" value="09:00"></div>
+        </div>
+        <div class="g2">
+          <div class="fld"><label>Almuerzo</label><input type="time" id="h-almuerzo" value="13:00"></div>
+          <div class="fld"><label>Cena</label><input type="time" id="h-cena" value="19:30"></div>
+        </div>
+        <div class="g2">
+          <div class="fld"><label>Traslado</label><input type="time" id="h-traslado" value="10:00"></div>
+          <div class="fld"><label>Check-out</label><input type="time" id="h-checkout" value="11:00"></div>
+        </div>
+      </div>
+    </div>
+
+    <button class="tb-btn tb-primary" style="width:100%;justify-content:center;padding:12px" onclick="regenerarTodo()">
+      🔄 Regenerar itinerario
+    </button>
+
+  </div><!-- /config-panel -->
+
+  <!-- ══ MAIN ══ -->
+  <div class="main-col">
+
+    <!-- Quick stats -->
+    <div class="quick-stats">
+      <div class="qs-item"><div class="qs-num" id="qs-dias">0</div><div class="qs-lbl">Días totales</div></div>
+      <div class="qs-item"><div class="qs-num" id="qs-parques">0</div><div class="qs-lbl">Días de parque</div></div>
+      <div class="qs-item"><div class="qs-num" id="qs-libres">0</div><div class="qs-lbl">Días libres</div></div>
+    </div>
+
+    <div class="dias-header">
+      <div>
+        <div class="dias-h-title">Itinerario</div>
+        <div class="dias-h-sub" id="dias-h-sub">Cargá los datos y presioná Regenerar</div>
+      </div>
+      <div class="dias-h-actions">
+        <button class="btn-sm btn-sm-outline" onclick="collapseAll()">Colapsar todo</button>
+        <button class="btn-sm btn-sm-navy" onclick="expandAll()">Expandir todo</button>
+      </div>
+    </div>
+
+    <div id="dias-container">
+      <div style="text-align:center;padding:48px;color:var(--gris)">
+        <div style="font-size:36px;margin-bottom:10px">📅</div>
+        <div style="font-size:14px;font-weight:700">Cargá el demo o completá los datos del viaje</div>
+        <div style="font-size:12px;margin-top:6px">El itinerario se genera automáticamente</div>
+      </div>
+    </div>
+
+  </div><!-- /main-col -->
+</div><!-- /layout -->
+
+<!-- MODAL PREVIEW -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-hd">
+      <div class="modal-hd-title">Vista previa — Itinerario PDF</div>
+      <div class="modal-hd-actions">
+        <button class="modal-btn modal-btn-close" onclick="closePreview()">✕ Cerrar</button>
+        <button class="modal-btn modal-btn-dl" onclick="downloadPDF()">⬇ Descargar PDF</button>
+      </div>
+    </div>
+    <div class="modal-content" id="modal-content"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  ESTADO
+// ═══════════════════════════════════════════════════════════
+var diasData = [];          // [{tipo, titulo, fecha, actividades:[{hora,emoji,color,desc,nota}], nota, visible}]
+var hotelesConfig = [];     // [{nombre, fechaIn, fechaOut}]
+var hotelConfigCount = 0;
+
+// ═══════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════════
+function gv(id){ var el=document.getElementById(id); return el?el.value.trim():''; }
+function gn(id){ return parseFloat(gv(id))||0; }
+function reglaOn(id){ var el=document.getElementById(id); return el&&el.classList.contains('on'); }
+
+function addDays(dateStr, n){
+  var d = new Date(dateStr+'T12:00:00');
+  d.setDate(d.getDate()+n);
+  return d.toISOString().split('T')[0];
+}
+function formatDateES(dateStr){
+  if(!dateStr) return '—';
+  var d = new Date(dateStr+'T12:00:00');
+  var dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  var meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  return dias[d.getDay()]+', '+d.getDate()+' de '+meses[d.getMonth()]+' '+d.getFullYear();
+}
+function formatDateShort(dateStr){
+  if(!dateStr) return '';
+  var d = new Date(dateStr+'T12:00:00');
+  var meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  return d.getDate()+' '+meses[d.getMonth()]+' '+d.getFullYear();
+}
+function tipoLabel(tipo){
+  var map = {
+    llegada:'Llegada', libre:'Día libre', parque:'Parque', descanso:'Descanso',
+    traslado_hotel:'Traslado de hotel', salida:'Salida', playa:'Playa & relax',
+    ciudad:'Ciudad & cultura', crucero:'Puerto / Crucero', excursion:'Excursión',
+  };
+  return map[tipo]||tipo;
+}
+function tipoEmoji(tipo){
+  var map = {
+    llegada:'🛬', libre:'🌿', parque:'🎢', descanso:'😴',
+    traslado_hotel:'🔄', salida:'🛫', playa:'🏖️',
+    ciudad:'🏛️', crucero:'🚢', excursion:'🌄',
+  };
+  return map[tipo]||'📅';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  TOGLES
+// ═══════════════════════════════════════════════════════════
+function toggleCC(id){
+  var el = document.getElementById(id);
+  el.classList.toggle('open');
+}
+function toggleRegla(id){
+  document.getElementById(id).classList.toggle('on');
+}
+function onModoChange(){
+  var modo = gv('cfg-modo');
+  document.getElementById('cfg-disney-wrap').style.display = (modo==='disney'||modo==='playa') ? 'block' : 'none';
+  if(modo!=='disney') document.getElementById('cfg-disney-wrap').style.display = 'none';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  HOTELES CONFIG
+// ═══════════════════════════════════════════════════════════
+function addHotelConfig(nombre, fi, fo){
+  hotelConfigCount++;
+  var id = 'hc'+hotelConfigCount;
+  var wrap = document.getElementById('hoteles-config-list');
+  var div = document.createElement('div');
+  div.className = 'dyn-row' ; div.id = id;
+  div.style.cssText = 'background:#f9f7f3;border:1px solid #e0ddd8;border-radius:7px;padding:10px;margin-bottom:8px';
+  div.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <span style="font-size:10px;font-weight:800;color:var(--navy);text-transform:uppercase;letter-spacing:.8px">🏨 Hotel ${hotelConfigCount}</span>
+      <button style="background:none;border:none;color:#ccc;cursor:pointer;font-size:13px" onclick="removeHotelConfig('${id}')">✕</button>
+    </div>
+    <div class="fld" style="margin-bottom:8px"><label>Nombre</label>
+      <input type="text" id="${id}-nombre" placeholder="Nombre del hotel" value="${nombre||''}">
+    </div>
+    <div class="g2">
+      <div class="fld"><label>Check-in</label><input type="date" id="${id}-in" value="${fi||''}"></div>
+      <div class="fld"><label>Check-out</label><input type="date" id="${id}-out" value="${fo||''}"></div>
+    </div>`;
+  wrap.appendChild(div);
+  hotelesConfig.push(id);
+}
+function removeHotelConfig(id){
+  var el=document.getElementById(id); if(el)el.remove();
+  var i=hotelesConfig.indexOf(id); if(i>-1)hotelesConfig.splice(i,1);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  GENERADOR PRINCIPAL
+// ═══════════════════════════════════════════════════════════
+function regenerarTodo(){
+  var fechaIn  = gv('cfg-fecha-in');
+  var fechaOut = gv('cfg-fecha-out');
+  if(!fechaIn || !fechaOut){ showToast('Ingresá las fechas del viaje'); return; }
+
+  var d1 = new Date(fechaIn+'T12:00:00');
+  var d2 = new Date(fechaOut+'T12:00:00');
+  var totalDias = Math.round((d2-d1)/(1000*60*60*24))+1;
+  if(totalDias<1){ showToast('Las fechas no son válidas'); return; }
+
+  var modo = gv('cfg-modo');
+
+  // Leer hoteles y sus transiciones
+  var hotelTransitions = [];
+  hotelesConfig.forEach(function(id){
+    var hcIn  = gv(id+'-in');
+    var hcOut = gv(id+'-out');
+    var hcNombre = gv(id+'-nombre');
+    if(hcIn && hcOut && hcNombre){
+      hotelTransitions.push({nombre:hcNombre, in:hcIn, out:hcOut});
+    }
+  });
+  // Si hay solo un hotel sin fechas exactas, usar fechas del viaje
+  if(!hotelTransitions.length){
+    hotelesConfig.forEach(function(id){
+      var hcNombre = gv(id+'-nombre');
+      if(hcNombre) hotelTransitions.push({nombre:hcNombre, in:fechaIn, out:fechaOut});
+    });
+  }
+
+  // Fechas de traslado de hotel (checkout de un hotel que no es el último día)
+  var trasladoDates = new Set();
+  if(hotelTransitions.length>1){
+    hotelTransitions.forEach(function(h, i){
+      if(i>0) trasladoDates.add(h.in); // día de check-in del hotel 2,3...
+    });
+  }
+
+  // Parques disponibles (desde checkboxes)
+  var parquesDisponibles = [];
+  var pks = document.querySelectorAll('#parques-grid input[type=checkbox]:checked');
+  pks.forEach(function(pk){ parquesDisponibles.push(pk.value); });
+  if(!parquesDisponibles.length) parquesDisponibles = ['Magic Kingdom','EPCOT','Hollywood Studios','Animal Kingdom'];
+
+  // Si viene del budget, construir lista de parques expandida según tickets (cant × parque)
+  // para que los días de parque usen el parque correcto
+  var parquesOrdenados = TASS_ItineraryGenerator.buildParquesOrdenados(
+    window._budgetRef || {},
+    parquesDisponibles
+  );
+
+  var descansoEn = parseInt(gv('cfg-descanso-cada'))||2;
+
+  var dias = [];
+  var parqueIdx = 0;
+  var diasDeParque = 0;
+
+  for(var i=0; i<totalDias; i++){
+    var fechaDia = addDays(fechaIn, i);
+    var esLlegada = (i === 0);
+    var esSalida  = (i === totalDias-1);
+    var esTraslado = trasladoDates.has(fechaDia);
+
+    var dia = {
+      numero: i+1,
+      fecha: fechaDia,
+      fechaLabel: formatDateES(fechaDia),
+      tipo: 'parque',
+      titulo: '',
+      actividades: [],
+      nota: '',
+      visible: true,
+    };
+
+    // — REGLA LLEGADA
+    if(esLlegada && reglaOn('regla-llegada')){
+      dia.tipo = 'llegada';
+      dia.titulo = 'Llegada y bienvenida';
+      dia.actividades = buildActsLlegada(fechaDia, hotelTransitions);
+      dias.push(dia); continue;
+    }
+
+    // — REGLA SALIDA
+    if(esSalida && reglaOn('regla-salida')){
+      dia.tipo = 'salida';
+      dia.titulo = 'Día de salida';
+      dia.actividades = buildActsSalida();
+      dias.push(dia); continue;
+    }
+
+    // — REGLA TRASLADO HOTEL
+    if(esTraslado && reglaOn('regla-traslado')){
+      var nuevoHotel = hotelTransitions.find(function(h){ return h.in===fechaDia; });
+      dia.tipo = 'traslado_hotel';
+      dia.titulo = 'Cambio de hotel' + (nuevoHotel ? ' → '+nuevoHotel.nombre : '');
+      dia.actividades = buildActsTraslado(nuevoHotel);
+      dias.push(dia); continue;
+    }
+
+    // — MODOS
+    if(modo === 'disney'){
+      // Descanso cada N parques
+      if(reglaOn('regla-descanso') && diasDeParque > 0 && diasDeParque % descansoEn === 0){
+        dia.tipo = 'descanso';
+        dia.titulo = 'Día de descanso y relax';
+        dia.actividades = buildActsDescanso();
+        diasDeParque = 0;
+        dias.push(dia); continue;
+      }
+      // Parque acuático (si tiene ticket o regla activada)
+      if(reglaOn('regla-agua') && parqueIdx === 2){
+        dia.tipo = 'libre';
+        dia.titulo = 'Parque acuático';
+        dia.actividades = buildActsAcuatico();
+        dias.push(dia); continue;
+      }
+      // Shopping / Disney Springs (penúltimo día útil)
+      if(reglaOn('regla-shopping') && i === totalDias-2 && !esSalida){
+        dia.tipo = 'libre';
+        dia.titulo = 'Disney Springs & Shopping';
+        dia.actividades = buildActsShopping();
+        dias.push(dia); continue;
+      }
+      // Parque normal — usar lista ordenada del budget si existe
+      var parqueNombre;
+      if(parqueIdx < parquesOrdenados.length){
+        parqueNombre = parquesOrdenados[parqueIdx];
+      } else {
+        parqueNombre = parquesDisponibles[parqueIdx % parquesDisponibles.length];
+      }
+      parqueIdx++;
+      diasDeParque++;
+      dia.tipo = 'parque';
+      dia.titulo = parqueNombre;
+      dia.actividades = buildActsParque(parqueNombre);
+
+    } else if(modo === 'playa'){
+      dia.tipo = 'playa';
+      dia.titulo = 'Playa & relax';
+      dia.actividades = buildActsPlaya(i);
+
+    } else if(modo === 'crucero'){
+      dia.tipo = 'crucero';
+      dia.titulo = i===0?'Embarque':i===totalDias-1?'Desembarque':'Día en crucero / Puerto';
+      dia.actividades = buildActsCrucero(i, totalDias);
+
+    } else if(modo === 'ciudad'){
+      dia.tipo = 'ciudad';
+      dia.titulo = 'Exploración de la ciudad';
+      dia.actividades = buildActsCiudad(i);
+
+    } else {
+      dia.tipo = 'libre';
+      dia.titulo = 'Día '+(i+1);
+      dia.actividades = [{hora:'09:00',emoji:'🌿',color:'color-verde',desc:'',nota:''}];
+    }
+
+    dias.push(dia);
+  }
+
+  diasData = dias;
+  renderDias();
+  updateSummary();
+  showToast('Itinerario generado: '+totalDias+' días ✓');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  BUILDERS DE ACTIVIDADES
+// ═══════════════════════════════════════════════════════════
+function H(tipo){ return gv('h-'+tipo)||'09:00'; }
+
+function buildActsLlegada(fecha, hoteles){
+  var hotel = hoteles.length ? hoteles[0].nombre : 'el hotel';
+  return [
+    {hora:'',        emoji:'✈️', color:'color-navy',   desc:'Vuelo / traslado internacional', nota:'Controlar documentación y equipaje'},
+    {hora:'',        emoji:'🚐', color:'color-naranja', desc:'Traslado desde el aeropuerto a '+hotel, nota:''},
+    {hora:'',        emoji:'🏨', color:'color-azul',   desc:'Check-in en '+hotel, nota:'Solicitar Early Check-in si está disponible'},
+    {hora:'',        emoji:'🌿', color:'color-verde',  desc:'Descanso y ambientación', nota:'Recorrida por las instalaciones del hotel'},
+    {hora:H('cena'), emoji:'🍽️', color:'color-dorado', desc:'Cena de bienvenida', nota:''},
+    {hora:'21:00',   emoji:'😴', color:'color-verde',  desc:'Descanso — mañana empieza la magia 🏰', nota:''},
+  ];
+}
+
+function buildActsSalida(){
+  return [
+    {hora:'07:00', emoji:'🌅', color:'color-dorado', desc:'Desayuno final en el hotel', nota:''},
+    {hora:H('checkout'), emoji:'🧳', color:'color-azul', desc:'Check-out del hotel y preparación del equipaje', nota:''},
+    {hora:'',      emoji:'🌿', color:'color-verde',  desc:'Última mañana libre (shopping, fotos, recuerdos)', nota:''},
+    {hora:'',      emoji:'🚐', color:'color-naranja', desc:'Traslado al aeropuerto', nota:'Llegar con 3 hs de anticipación'},
+    {hora:'',      emoji:'✈️', color:'color-navy',   desc:'Vuelo de regreso a casa 🏠', nota:'Hasta la próxima aventura ✨'},
+  ];
+}
+
+function buildActsTraslado(nuevoHotel){
+  var nombre = nuevoHotel ? nuevoHotel.nombre : 'nuevo hotel';
+  return [
+    {hora:'08:00', emoji:'🌅', color:'color-dorado', desc:'Desayuno tranquilo', nota:''},
+    {hora:H('checkout'), emoji:'🧳', color:'color-azul', desc:'Check-out del hotel anterior', nota:'Guardar equipaje en consigna si hace falta'},
+    {hora:'11:00', emoji:'🌿', color:'color-verde',  desc:'Mañana libre — Última recorrida, fotos o descanso', nota:''},
+    {hora:'13:00', emoji:'🍽️', color:'color-dorado', desc:'Almuerzo', nota:''},
+    {hora:'15:00', emoji:'🚐', color:'color-naranja', desc:'Traslado a '+nombre, nota:''},
+    {hora:'16:00', emoji:'🏨', color:'color-azul',   desc:'Check-in en '+nombre, nota:'Explorá las nuevas instalaciones'},
+    {hora:H('cena'), emoji:'🍽️', color:'color-dorado', desc:'Cena en el nuevo hotel', nota:''},
+  ];
+}
+
+function buildActsDescanso(){
+  return [
+    {hora:'09:00', emoji:'🌅', color:'color-dorado', desc:'Desayuno relajado en el hotel', nota:'Sin apuro, el día es para recargar energías'},
+    {hora:'10:30', emoji:'🏊', color:'color-azul',   desc:'Piscina o spa del hotel', nota:''},
+    {hora:'13:00', emoji:'🍽️', color:'color-dorado', desc:'Almuerzo tranquilo', nota:''},
+    {hora:'15:00', emoji:'😴', color:'color-verde',  desc:'Siesta / descanso', nota:'Cuerpos chargados para los próximos parques'},
+    {hora:'17:00', emoji:'🛍️', color:'color-lila',   desc:'Pequeño paseo o souvenir', nota:''},
+    {hora:H('cena'), emoji:'🍽️', color:'color-dorado', desc:'Cena', nota:''},
+  ];
+}
+
+function buildActsParque(parque){
+  var emojis = {
+    'Magic Kingdom':'🏰','EPCOT':'🌍','Hollywood Studios':'🎬',
+    'Animal Kingdom':'🦁','Universal Studios':'🎭','Islands of Adventure':'⚡',
+    'Blizzard Beach':'❄️','Disney Springs':'🛍️',
+  };
+  var emo = emojis[parque] || '🎢';
+  var tips = {
+    'Magic Kingdom': 'Comenzar con Tomorrowland para evitar filas — Lightning Lane para Seven Dwarfs',
+    'EPCOT': 'World Showcase abre al mediodía — Guardians of the Galaxy temprano',
+    'Hollywood Studios': 'Llegar 30 min antes de apertura — Rise of the Resistance agotado rápido',
+    'Animal Kingdom': 'Avatar temprano — Los animales están más activos a la mañana',
+    'Universal Studios': 'Hagrids Motorbike primero — usar Express Pass si está disponible',
+    'Islands of Adventure': 'Velocicoaster al abrir — Hogwarts Express al mediodía',
+  };
+  return [
+    {hora:'07:30', emoji:'☀️', color:'color-dorado', desc:'Desayuno y preparación para el parque', nota:'Protector solar, ropa cómoda, snacks'},
+    {hora:H('parque'), emoji:emo, color:'color-rojo', desc:'Apertura — Entrada a '+parque, nota:tips[parque]||''},
+    {hora:'11:00', emoji:'🎢', color:'color-rojo',   desc:'Atracciones principales', nota:'Usar Lightning Lane / Virtual Queue para las más populares'},
+    {hora:H('almuerzo'), emoji:'🍽️', color:'color-dorado', desc:'Almuerzo en el parque', nota:''},
+    {hora:'14:30', emoji:'🎢', color:'color-rojo',   desc:'Más atracciones — Shows y desfiles', nota:''},
+    {hora:'17:00', emoji:'🎭', color:'color-lila',   desc:'Show de tarde / Desfile', nota:'Revisar el calendario de espectáculos'},
+    {hora:H('cena'), emoji:'🍽️', color:'color-dorado', desc:'Cena', nota:'Reservar con anticipación en restaurantes de autor'},
+    {hora:'21:00', emoji:'🎇', color:'color-rojo',   desc:'Show nocturno / Fuegos artificiales', nota:'Mejor posición 30 min antes'},
+  ];
+}
+
+function buildActsAcuatico(){
+  return [
+    {hora:'08:00', emoji:'☀️', color:'color-dorado', desc:'Desayuno y preparación', nota:'Traje de baño, protector solar, toalla'},
+    {hora:'09:00', emoji:'💧', color:'color-azul',   desc:'Entrada al parque acuático', nota:'Llegar a la apertura para las mejores piletas'},
+    {hora:'12:30', emoji:'🍔', color:'color-dorado', desc:'Almuerzo en el parque', nota:''},
+    {hora:'14:00', emoji:'🌊', color:'color-azul',   desc:'Toboganes y atracciones acuáticas', nota:''},
+    {hora:'17:00', emoji:'🌿', color:'color-verde',  desc:'Regreso y descanso en el hotel', nota:''},
+    {hora:H('cena'), emoji:'🍽️', color:'color-dorado', desc:'Cena', nota:''},
+  ];
+}
+
+function buildActsShopping(){
+  return [
+    {hora:'09:00', emoji:'🌅', color:'color-dorado', desc:'Desayuno', nota:''},
+    {hora:'10:00', emoji:'🛍️', color:'color-lila',   desc:'Disney Springs — Shopping y exploración', nota:'World of Disney, tiendas temáticas, restaurantes'},
+    {hora:'12:30', emoji:'🍽️', color:'color-dorado', desc:'Almuerzo en Disney Springs', nota:'Variedad de restaurantes para todos los gustos'},
+    {hora:'14:00', emoji:'🛍️', color:'color-lila',   desc:'Últimas compras de souvenirs y recuerdos', nota:''},
+    {hora:'16:00', emoji:'📸', color:'color-lila',   desc:'Sesión de fotos y recuerdos', nota:''},
+    {hora:H('cena'), emoji:'🍽️', color:'color-dorado', desc:'Cena de despedida', nota:'Reservar con anticipación en restaurante especial'},
+  ];
+}
+
+function buildActsPlaya(nDia){
+  if(nDia===0) return buildActsLlegada('', []);
+  return [
+    {hora:'08:30', emoji:'🌅', color:'color-dorado', desc:'Desayuno en el resort', nota:''},
+    {hora:'10:00', emoji:'🏖️', color:'color-azul',   desc:'Playa / Pileta', nota:'Protector solar SPF 50+'},
+    {hora:'13:00', emoji:'🍹', color:'color-dorado', desc:'Almuerzo y cocteles', nota:''},
+    {hora:'15:00', emoji:'🏊', color:'color-azul',   desc:'Deportes acuáticos o excursión opcional', nota:''},
+    {hora:'18:00', emoji:'🌇', color:'color-naranja', desc:'Atardecer en la playa', nota:'Momento fotográfico imperdible'},
+    {hora:H('cena'), emoji:'🍽️', color:'color-dorado', desc:'Cena', nota:''},
+  ];
+}
+
+function buildActsCrucero(nDia, total){
+  if(nDia===0) return [
+    {hora:'10:00', emoji:'🚐', color:'color-naranja', desc:'Traslado al puerto', nota:''},
+    {hora:'12:00', emoji:'🚢', color:'color-azul',   desc:'Embarque en el crucero', nota:'Drill de seguridad obligatorio'},
+    {hora:'16:00', emoji:'🌊', color:'color-azul',   desc:'Zarpe — ¡empieza la aventura!', nota:''},
+    {hora:H('cena'), emoji:'🍽️', color:'color-dorado', desc:'Cena de bienvenida en el comedor principal', nota:''},
+  ];
+  if(nDia===total-1) return [
+    {hora:'07:00', emoji:'🌅', color:'color-dorado', desc:'Último desayuno a bordo', nota:''},
+    {hora:'09:00', emoji:'🧳', color:'color-azul',   desc:'Desembarque', nota:''},
+    {hora:'11:00', emoji:'🚐', color:'color-naranja', desc:'Traslado desde el puerto', nota:''},
+  ];
+  return [
+    {hora:'08:00', emoji:'🌅', color:'color-dorado', desc:'Desayuno a bordo', nota:''},
+    {hora:'09:30', emoji:'⚓', color:'color-azul',   desc:'Puerto del día / excursión terrestre', nota:'Confirmar excursiones con anticipación'},
+    {hora:'13:00', emoji:'🍽️', color:'color-dorado', desc:'Almuerzo a bordo o en tierra', nota:''},
+    {hora:'15:00', emoji:'🎭', color:'color-lila',   desc:'Entretenimiento a bordo', nota:''},
+    {hora:H('cena'), emoji:'🍽️', color:'color-dorado', desc:'Cena en el comedor temático', nota:'Reservar mesa con anticipación'},
+    {hora:'21:00', emoji:'🎸', color:'color-lila',   desc:'Show nocturno a bordo', nota:''},
+  ];
+}
+
+function buildActsCiudad(nDia){
+  return [
+    {hora:'08:30', emoji:'☕', color:'color-dorado', desc:'Desayuno en café local', nota:''},
+    {hora:'10:00', emoji:'🏛️', color:'color-azul',   desc:'Visita cultural / Museo o sitio histórico', nota:''},
+    {hora:'13:00', emoji:'🍽️', color:'color-dorado', desc:'Almuerzo en restaurante local', nota:'Probar gastronomía típica'},
+    {hora:'15:00', emoji:'🚶', color:'color-verde',  desc:'Barrio histórico / Tour a pie', nota:''},
+    {hora:'17:30', emoji:'📸', color:'color-lila',   desc:'Fotos en los puntos icónicos', nota:''},
+    {hora:H('cena'), emoji:'🍽️', color:'color-dorado', desc:'Cena', nota:''},
+  ];
+}
+
+// ═══════════════════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════════════════
+function renderDias(){
+  var container = document.getElementById('dias-container');
+  container.innerHTML = '';
+
+  diasData.forEach(function(dia, idx){
+    if(!dia.visible) return;
+    container.appendChild(buildDiaCard(dia, idx));
+  });
+
+  updateQuickStats();
+}
+
+function buildDiaCard(dia, idx){
+  var card = document.createElement('div');
+  card.className = 'dia-card';
+  card.id = 'dia-card-'+idx;
+  card.dataset.tipo = dia.tipo;
+  card.dataset.idx  = idx;
+
+  // Encabezado
+  var hd = document.createElement('div');
+  hd.className = 'dia-hd';
+  hd.innerHTML = `
+    <div class="dia-hd-top">
+      <div class="dia-num-badge">Día ${dia.numero}</div>
+      <div class="dia-hd-centro">
+        <input class="dia-titulo-input" type="text" value="${dia.titulo}" placeholder="Título del día…"
+          onchange="diasData[${idx}].titulo=this.value">
+        <div class="dia-fecha-label">${dia.fechaLabel||''}</div>
+      </div>
+      <div class="dia-hd-actions">
+        <select class="dia-tipo-select" onchange="changeTipoDia(${idx},this.value)">
+          ${['llegada','libre','parque','descanso','traslado_hotel','salida','playa','ciudad','crucero','excursion'].map(function(t){
+            return `<option value="${t}" ${dia.tipo===t?'selected':''}>${tipoEmoji(t)} ${tipoLabel(t)}</option>`;
+          }).join('')}
+        </select>
+        <button class="dia-toggle" onclick="toggleDia(${idx})">▼</button>
+      </div>
+    </div>`;
+
+  card.appendChild(hd);
+
+  // Body
+  var body = document.createElement('div');
+  body.className = 'dia-body';
+
+  // Actividades
+  var actsWrap = document.createElement('div');
+  actsWrap.className = 'acts-wrap';
+  actsWrap.id = 'acts-wrap-'+idx;
+  dia.actividades.forEach(function(act, ai){
+    actsWrap.appendChild(buildActRow(act, idx, ai));
+  });
+  body.appendChild(actsWrap);
+
+  // Footer del body
+  var ft = document.createElement('div');
+  ft.className = 'dia-footer';
+  ft.innerHTML = `
+    <button class="btn-add-act" onclick="addActToDia(${idx})">+ Actividad</button>
+    <button class="btn-del-dia" onclick="removeDia(${idx})">🗑 Eliminar día</button>`;
+  body.appendChild(ft);
+
+  // Nota del día
+  var notaWrap = document.createElement('div');
+  notaWrap.className = 'dia-nota-wrap';
+  notaWrap.innerHTML = `
+    <label>Notas del día (tips, sugerencias)</label>
+    <textarea placeholder="Tips para el agente, sugerencias para el cliente, recomendaciones del día…" 
+      onchange="diasData[${idx}].nota=this.value">${dia.nota||''}</textarea>`;
+  body.appendChild(notaWrap);
+
+  card.appendChild(body);
+  return card;
+}
+
+function buildActRow(act, diaIdx, actIdx){
+  var row = document.createElement('div');
+  row.className = 'act-row';
+  row.id = 'act-'+diaIdx+'-'+actIdx;
+
+  row.innerHTML = `
+    <div class="act-row-left" style="position:relative">
+      <input class="act-hora-input" type="text" value="${act.hora||''}" placeholder="--:--"
+        onchange="diasData[${diaIdx}].actividades[${actIdx}].hora=this.value" maxlength="5">
+      <button class="act-tipo-btn ${act.color||'color-verde'}"
+        onclick="openTipoPicker(event,${diaIdx},${actIdx})"
+        title="Cambiar tipo">${act.emoji||'🌿'}</button>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:2px">
+      <input class="act-desc-input" type="text" value="${(act.desc||'').replace(/"/g,'&quot;')}" placeholder="Descripción de la actividad…"
+        onchange="diasData[${diaIdx}].actividades[${actIdx}].desc=this.value">
+      <input class="act-nota-input" type="text" value="${(act.nota||'').replace(/"/g,'&quot;')}" placeholder="Nota / tip interno…"
+        onchange="diasData[${diaIdx}].actividades[${actIdx}].nota=this.value">
+    </div>
+    <div class="act-right">
+      <button class="act-rm" onclick="removeAct(${diaIdx},${actIdx})" title="Eliminar">✕</button>
+    </div>`;
+  return row;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  TIPO PICKER
+// ═══════════════════════════════════════════════════════════
+var currentTipoTarget = null;
+function openTipoPicker(e, diaIdx, actIdx){
+  e.stopPropagation();
+  var pp = document.getElementById('tipo-popup');
+  pp.style.left = (e.clientX - 10) + 'px';
+  pp.style.top  = (e.clientY + 12) + 'px';
+  pp.classList.add('open');
+  currentTipoTarget = {diaIdx:diaIdx, actIdx:actIdx, btn:e.currentTarget};
+}
+function setTipoAct(emoji, tipo, color){
+  if(!currentTipoTarget) return;
+  var d = currentTipoTarget.diaIdx;
+  var a = currentTipoTarget.actIdx;
+  diasData[d].actividades[a].emoji = emoji;
+  diasData[d].actividades[a].tipo  = tipo;
+  diasData[d].actividades[a].color = color;
+  // Actualizar botón
+  currentTipoTarget.btn.textContent = emoji;
+  currentTipoTarget.btn.className = 'act-tipo-btn '+color;
+  document.getElementById('tipo-popup').classList.remove('open');
+  currentTipoTarget = null;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  OPERACIONES DE DÍAS / ACTIVIDADES
+// ═══════════════════════════════════════════════════════════
+function addActToDia(idx){
+  diasData[idx].actividades.push({hora:'',emoji:'🌿',color:'color-verde',desc:'',nota:''});
+  var wrap = document.getElementById('acts-wrap-'+idx);
+  var ai = diasData[idx].actividades.length-1;
+  wrap.appendChild(buildActRow(diasData[idx].actividades[ai], idx, ai));
+}
+function removeAct(diaIdx, actIdx){
+  diasData[diaIdx].actividades.splice(actIdx,1);
+  renderDias();
+}
+function removeDia(idx){
+  if(!confirm('¿Eliminar este día?')) return;
+  diasData.splice(idx,1);
+  // Re-numerar
+  diasData.forEach(function(d,i){ d.numero=i+1; });
+  renderDias();
+}
+function toggleDia(idx){
+  var card = document.getElementById('dia-card-'+idx);
+  card.classList.toggle('collapsed');
+}
+function changeTipoDia(idx, tipo){
+  diasData[idx].tipo = tipo;
+  var card = document.getElementById('dia-card-'+idx);
+  card.dataset.tipo = tipo;
+}
+function addDiaManual(){
+  var ultimo = diasData.length ? diasData[diasData.length-1] : null;
+  var fecha = ultimo ? addDays(ultimo.fecha,1) : '';
+  diasData.push({
+    numero: diasData.length+1,
+    fecha: fecha,
+    fechaLabel: fecha ? formatDateES(fecha) : 'Día '+(diasData.length+1),
+    tipo:'libre', titulo:'Nuevo día',
+    actividades:[{hora:'09:00',emoji:'🌿',color:'color-verde',desc:'',nota:''}],
+    nota:'', visible:true,
+  });
+  renderDias();
+}
+function collapseAll(){
+  diasData.forEach(function(_,i){
+    var c=document.getElementById('dia-card-'+i); if(c) c.classList.add('collapsed');
+  });
+}
+function expandAll(){
+  diasData.forEach(function(_,i){
+    var c=document.getElementById('dia-card-'+i); if(c) c.classList.remove('collapsed');
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  STATS Y SUMMARY
+// ═══════════════════════════════════════════════════════════
+function updateQuickStats(){
+  var parques=0, libres=0;
+  diasData.forEach(function(d){
+    if(d.tipo==='parque') parques++;
+    else libres++;
+  });
+  document.getElementById('qs-dias').textContent = diasData.length;
+  document.getElementById('qs-parques').textContent = parques;
+  document.getElementById('qs-libres').textContent = libres;
+}
+function updateSummary(){
+  var bref   = window._budgetRef || {};
+  var bc     = bref.cliente || {};
+  var bd     = bref.destino || {};
+  var nombre = gv('cfg-nombre')  || bc.nombre || 'Cliente';
+  var dest   = gv('cfg-destino') || bd.nombre || '—';
+  var fi     = gv('cfg-fecha-in')  || bd.fechaIn  || '';
+  var fo     = gv('cfg-fecha-out') || bd.fechaOut || '';
+  document.getElementById('cp-name').textContent  = nombre;
+  document.getElementById('cp-dest').textContent  = dest;
+  document.getElementById('cp-dates').textContent = fi&&fo ? formatDateShort(fi)+' → '+formatDateShort(fo) : '—';
+  var ad = gv('cfg-adultos') || bc.adultos || '0';
+  var mn = gv('cfg-menores') || bc.menores || '0';
+  document.getElementById('cp-meta').textContent  = ad+' adulto'+(ad!=1?'s':'')+(parseInt(mn)>0?', '+mn+' menor'+(mn!=1?'es':''):'');
+  if(fi&&fo){
+    var sub = document.getElementById('dias-h-sub');
+    var d1=new Date(fi+'T12:00:00'), d2=new Date(fo+'T12:00:00');
+    var n = Math.round((d2-d1)/(1000*60*60*24))+1;
+    sub.textContent = formatDateShort(fi)+' → '+formatDateShort(fo)+' · '+n+' días';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  DEMO DATA
+// ═══════════════════════════════════════════════════════════
+function loadDemoData(){
+  document.getElementById('cfg-nombre').value  = 'Familia González';
+  document.getElementById('cfg-destino').value = 'Orlando – Walt Disney World';
+  document.getElementById('cfg-fecha-in').value  = '2026-08-15';
+  document.getElementById('cfg-fecha-out').value = '2026-08-22';
+  document.getElementById('cfg-adultos').value = 2;
+  document.getElementById('cfg-menores').value = 2;
+  document.getElementById('cfg-modo').value    = 'disney';
+  document.getElementById('cfg-numero').value  = 'MM-2026-080';
+
+  // Hoteles: cambio de hotel en día 4
+  removeHotelConfig('hc1');
+  hotelesConfig = [];
+  hotelConfigCount = 0;
+  document.getElementById('hoteles-config-list').innerHTML = '';
+  addHotelConfig("Disney's All-Star Sports Resort", '2026-08-15', '2026-08-18');
+  addHotelConfig("Disney's Coronado Springs Resort", '2026-08-18', '2026-08-22');
+
+  // Parques activados
+  ['pk-mk','pk-ep','pk-hs','pk-ak'].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.checked=true;
+  });
+  ['pk-uni','pk-iowa','pk-bb','pk-ds'].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.checked=false;
+  });
+  document.getElementById('pk-bb').checked = true;
+  document.getElementById('pk-ds').checked = true;
+
+  document.getElementById('cfg-disney-wrap').style.display='block';
+  document.getElementById('regla-agua').classList.add('on');
+  document.getElementById('regla-shopping').classList.add('on');
+
+  setTimeout(function(){
+    updateSummary();
+    regenerarTodo();
+  },50);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  PDF PREVIEW
+// ═══════════════════════════════════════════════════════════
+function openPreview(){
+  if(!diasData.length){ showToast('Generá el itinerario primero'); return; }
+  var html = buildPDFHTML();
+  document.getElementById('modal-content').innerHTML = html;
+  document.getElementById('modal-overlay').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closePreview(){
+  document.getElementById('modal-overlay').classList.remove('open');
+  document.body.style.overflow='';
+}
+
+function buildPDFHTML(){
+  // Usar _budgetRef como fallback si los campos del DOM están vacíos
+  var bref    = window._budgetRef || {};
+  var bc      = bref.cliente || {};
+  var bd      = bref.destino || {};
+  var bm      = bref.meta    || {};
+
+  var nombre  = gv('cfg-nombre')  || bc.nombre  || 'Viajero';
+  var dest    = gv('cfg-destino') || bd.nombre  || 'Destino';
+  var fi      = gv('cfg-fecha-in')  || bd.fechaIn  || '';
+  var fo      = gv('cfg-fecha-out') || bd.fechaOut || '';
+  var numero  = gv('cfg-numero')  || bm.numero  || 'MM-000';
+  var adultos = gv('cfg-adultos') || bc.adultos || '2';
+  var menores = gv('cfg-menores') || bc.menores || '0';
+  var pax     = parseInt(adultos)+parseInt(menores);
+  var noches  = diasData.length-1;
+
+  // ── PORTADA ──────────────────────────────────────────────
+  var coverHTML = `
+  <div class="pdf-it-cover">
+    <div class="pdf-it-cover-deco1"></div>
+    <div class="pdf-it-cover-deco2"></div>
+    <div class="pdf-it-cover-deco3"></div>
+    <div class="pdf-it-cover-hd">
+      <div class="pdf-it-cover-agency">
+        <div class="pdf-it-cover-seal">MM</div>
+        <div>
+          <div class="pdf-it-cover-agency-name">MM Destinos Mágicos</div>
+          <div class="pdf-it-cover-agency-sub">Agente Certificada · Disney &amp; Universal</div>
+        </div>
+      </div>
+      <div class="pdf-it-cover-badge">Itinerario de viaje</div>
+    </div>
+    <div class="pdf-it-cover-body">
+      <div class="pdf-it-cover-eyebrow">Tu itinerario personalizado</div>
+      <div class="pdf-it-cover-title">${dest}</div>
+      <div class="pdf-it-cover-script">día a día con magia</div>
+      <div class="pdf-it-cover-chips">
+        <span class="pdf-it-cover-chip">${diasData.length} días</span>
+        <span class="pdf-it-cover-chip">${noches} noches</span>
+        <span class="pdf-it-cover-chip">${pax} viajero${pax!=1?'s':''}</span>
+        <span class="pdf-it-cover-chip">${diasData.filter(function(d){return d.tipo==='parque';}).length} días de parque</span>
+      </div>
+      <div class="pdf-it-cover-info">
+        <div class="pdf-it-cover-info-item">
+          <div class="pdf-it-cover-info-label">Para</div>
+          <div class="pdf-it-cover-info-val">${nombre}</div>
+        </div>
+        <div class="pdf-it-cover-info-item">
+          <div class="pdf-it-cover-info-label">N° Referencia</div>
+          <div class="pdf-it-cover-info-val">${numero}</div>
+        </div>
+        <div class="pdf-it-cover-info-item">
+          <div class="pdf-it-cover-info-label">Fecha entrada</div>
+          <div class="pdf-it-cover-info-val">${formatDateShort(fi)}</div>
+        </div>
+        <div class="pdf-it-cover-info-item">
+          <div class="pdf-it-cover-info-label">Fecha salida</div>
+          <div class="pdf-it-cover-info-val">${formatDateShort(fo)}</div>
+        </div>
+      </div>
+    </div>
+    <div class="pdf-it-cover-ft">
+      <div>📱 +54 9 2235 36-6351 · @mm_destinosmagicos</div>
+      <div>Documento preparado con ❤️</div>
+    </div>
+  </div>`;
+
+  // ── RESUMEN VISUAL DE DÍAS ────────────────────────────────
+  var resumenDias = diasData.map(function(d,i){
+    var bgMap = {
+      llegada:'#14532d',libre:'#166534',parque:'var(--rojo)',descanso:'#92400e',
+      traslado_hotel:'#1e3a5f',salida:'#1B2A4A',playa:'#0369a1',
+      ciudad:'#4338ca',crucero:'#0f4c6e',excursion:'#065f46',
+    };
+    var bg = bgMap[d.tipo] || 'var(--navy)';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:7px;margin-bottom:5px;background:${bg}">
+      <div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;flex-shrink:0">${d.numero}</div>
+      <div style="flex:1">
+        <div style="font-size:11.5px;font-weight:700;color:#fff">${d.titulo}</div>
+        <div style="font-size:9px;color:rgba(255,255,255,.6)">${d.fechaLabel||''}</div>
+      </div>
+      <div style="font-size:16px">${tipoEmoji(d.tipo)}</div>
+    </div>`;
+  }).join('');
+
+  var resumenPage = `
+  <div class="pdf-it-page">
+    <div class="pdf-it-ph">
+      <div class="pdf-it-ph-left">
+        <div class="pdf-it-ph-agency">MM DESTINOS MÁGICOS</div>
+        <div class="pdf-it-ph-client">${nombre} — ${dest}</div>
+      </div>
+      <div class="pdf-it-ph-right">
+        <div class="pdf-it-ph-num">${numero}</div>
+        <div class="pdf-it-ph-sub">Resumen del itinerario</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+      <div style="width:4px;height:22px;border-radius:2px;background:var(--rojo);flex-shrink:0"></div>
+      <div style="font-size:14px;font-weight:800;color:var(--navy);text-transform:uppercase;letter-spacing:.05em">Resumen del viaje día a día</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:20px">
+      ${resumenDias}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:18px">
+      ${[
+        {ico:'📅',num:diasData.length+' días',lbl:'Duración total'},
+        {ico:'🎢',num:diasData.filter(function(d){return d.tipo==='parque';}).length+' días',lbl:'En parques'},
+        {ico:'😴',num:diasData.filter(function(d){return d.tipo==='descanso'||d.tipo==='libre';}).length+' días',lbl:'Descanso / libre'},
+        {ico:'👥',num:pax+' pax',lbl:adultos+' adultos, '+menores+' menores'},
+      ].map(function(s){return `
+        <div style="background:var(--navy);border-radius:9px;padding:12px;text-align:center">
+          <div style="font-size:20px;margin-bottom:5px">${s.ico}</div>
+          <div style="font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:#fff">${s.num}</div>
+          <div style="font-size:9px;font-weight:700;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.8px;margin-top:2px">${s.lbl}</div>
+        </div>`; }).join('')}
+    </div>
+  </div>`;
+
+  // ── PÁGINAS DE DÍAS ───────────────────────────────────────
+  var diasHTML = '';
+  var itemsPerPage = 3;
+  var curPage = '';
+  var pageCount = 0;
+
+  function openPage(){
+    pageCount++;
+    curPage = `<div class="pdf-it-page">
+      <div class="pdf-it-ph">
+        <div class="pdf-it-ph-left">
+          <div class="pdf-it-ph-agency">MM DESTINOS MÁGICOS</div>
+          <div class="pdf-it-ph-client">${nombre} — ${dest}</div>
+        </div>
+        <div class="pdf-it-ph-right">
+          <div class="pdf-it-ph-num">${numero}</div>
+          <div class="pdf-it-ph-sub">Itinerario detallado</div>
+        </div>
+      </div>`;
+  }
+  function closePage(isLast){
+    if(isLast){
+      curPage += `
+        <div class="pdf-it-gracias">
+          <div class="pdf-it-gracias-big">¡que disfruten el viaje!</div>
+          <div class="pdf-it-gracias-sub">MM Destinos Mágicos · Estamos con ustedes en cada paso</div>
+          <div class="pdf-it-gracias-contacts">
+            <span>📸 /mm_destinosmagicos</span>
+            <span>📱 +54 9 2235 36-6351</span>
+          </div>
+        </div>`;
+    } else {
+      curPage += `<div class="pdf-it-page-ft"><span>MM Destinos Mágicos · ${numero}</span><span>© 2025 @mm_destinosmagicos</span></div>`;
+    }
+    curPage += '</div>';
+    diasHTML += curPage;
+    curPage = '';
+  }
+
+  openPage();
+  var countInPage = 0;
+  diasData.forEach(function(dia, idx){
+    if(countInPage >= itemsPerPage){
+      closePage(false);
+      openPage();
+      countInPage = 0;
+    }
+
+    var actsHTML = dia.actividades.map(function(a){
+      if(!a.desc) return '';
+      return `<div class="pdf-act-row">
+        <div class="pdf-act-hora">${a.hora||''}</div>
+        <div class="pdf-act-emoji">${a.emoji||'•'}</div>
+        <div class="pdf-act-text">
+          <div class="pdf-act-desc">${a.desc}</div>
+          ${a.nota ? `<div class="pdf-act-nota">${a.nota}</div>` : ''}
+        </div>
+      </div>`;
+    }).filter(Boolean).join('');
+
+    curPage += `
+    <div class="pdf-dia" data-tipo="${dia.tipo}">
+      <div class="pdf-dia-hd">
+        <div class="pdf-dia-hd-num">Día ${dia.numero}</div>
+        <div class="pdf-dia-hd-info">
+          <div class="pdf-dia-hd-title">${dia.titulo}</div>
+          <div class="pdf-dia-hd-fecha">${dia.fechaLabel||''}</div>
+        </div>
+        <div class="pdf-dia-hd-tag">${tipoEmoji(dia.tipo)} ${tipoLabel(dia.tipo)}</div>
+      </div>
+      <div class="pdf-dia-body">${actsHTML||'<div style="color:#bbb;font-size:11px;padding:8px 0">Sin actividades cargadas</div>'}</div>
+      ${dia.nota ? `<div class="pdf-dia-nota">💡 ${dia.nota}</div>` : ''}
+    </div>`;
+    countInPage++;
+  });
+  closePage(true);
+
+  return `<div id="pdf-document">${coverHTML}${resumenPage}${diasHTML}</div>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  DESCARGAR PDF — captura página por página para evitar cortes
+// ═══════════════════════════════════════════════════════════
+async function downloadPDF(){
+  var btn = document.querySelector('.modal-btn-dl');
+  btn.disabled = true; btn.textContent = '⏳ Generando…';
+  try{
+    var pdfDoc = document.getElementById('pdf-document');
+    if(!pdfDoc){ showToast('Abrí la vista previa primero'); return; }
+
+    // Recopilar todas las páginas (cover + content pages)
+    var pageDivs = Array.from(pdfDoc.querySelectorAll('.pdf-it-cover, .pdf-it-page'));
+    if(!pageDivs.length){ showToast('Sin páginas para exportar'); return; }
+
+    var {jsPDF} = window.jspdf;
+    var pdf = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
+    var pw = pdf.internal.pageSize.getWidth();   // 210mm
+    var ph = pdf.internal.pageSize.getHeight();  // 297mm
+
+    for(var i = 0; i < pageDivs.length; i++){
+      if(i > 0) pdf.addPage();
+
+      var pageEl = pageDivs[i];
+      // Forzar ancho fijo para render consistente
+      var prevW = pageEl.style.width;
+      pageEl.style.width = '794px'; // A4 a 96dpi
+
+      var canvas = await html2canvas(pageEl, {
+        scale: 3,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        allowTaint: true,
+        width: 794,
+        windowWidth: 794,
+      });
+
+      pageEl.style.width = prevW;
+
+      // Escalar la imagen para que llene el ancho de la página A4
+      // Si la altura proporcional excede A4, la ajustamos al alto
+      var ratio   = canvas.width / canvas.height;
+      var imgW    = pw;
+      var imgH    = pw / ratio;
+      if(imgH > ph) { imgH = ph; imgW = ph * ratio; }
+
+      var imgData = canvas.toDataURL('image/jpeg', 0.97);
+      pdf.addImage(imgData, 'JPEG', 0, 0, imgW, imgH);
+    }
+
+    var nombre = (gv('cfg-nombre')||'cliente').replace(/\s+/g,'_');
+    var num    = gv('cfg-numero')||'itinerario';
+    pdf.save('MM_Itinerario_'+nombre+'_'+num+'.pdf');
+    showToast('PDF descargado ✓');
+
+  }catch(err){
+    console.error(err);
+    showToast('Error al generar PDF: '+err.message);
+  }finally{
+    btn.disabled=false; btn.textContent='⬇ Descargar PDF';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════════════════
+function showToast(msg){
+  var t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(function(){t.classList.remove('show');},2800);
+}
+document.addEventListener('keydown',function(e){ if(e.key==='Escape') closePreview(); });
+
+// ═══════════════════════════════════════════════════════════
+//  CARGAR DESDE PRESUPUESTO (?budget= URL param)
+// ═══════════════════════════════════════════════════════════
+function decodeData(b64){
+  return TASS_Serializer.decodeData(b64);
+}
+
+function loadFromBudget(){
+  var b = TASS_Serializer.readPageData('budget');
+  if(!b) return false;
+
+  var sv = function(id, val){
+    var el = document.getElementById(id);
+    if(el && val !== undefined && val !== null && val !== '') el.value = val;
+  };
+
+  var c = b.cliente     || {};
+  var d = b.destino     || {};
+  var v = b.vuelo       || null;
+  var m = b.meta        || {};
+  var tks  = b.tickets  || [];
+  var aloj = b.alojamiento || [];
+  var cru  = b.crucero  || null;
+
+  // ── 1. Datos básicos ─────────────────────────────────────
+  sv('cfg-nombre',  c.nombre   || '');
+  sv('cfg-numero',  m.numero   || '');
+  sv('cfg-adultos', c.adultos  || '2');
+  sv('cfg-menores', c.menores  || '0');
+  sv('cfg-destino', d.nombre   || '');
+
+  // Fechas: vuelo tiene prioridad sobre destino
+  var fi = (v && v.fechaIda)    || d.fechaIn  || '';
+  var fo = (v && v.fechaVuelta) || d.fechaOut || '';
+  sv('cfg-fecha-in',  fi);
+  sv('cfg-fecha-out', fo);
+
+  // ── 2. Detectar modo por destino + tickets + crucero ─────
+  var destStr = (d.nombre || '').toLowerCase();
+  var tksStr  = tks.map(function(t){ return (t.parque||'')+(t.desc||''); }).join(' ').toLowerCase();
+  var todo    = destStr + ' ' + tksStr;
+  var modo    = 'libre';
+
+  if(cru)                                                                           modo = 'crucero';
+  else if(/disney|magic kingdom|epcot|hollywood studios|animal kingdom/i.test(todo)) modo = 'disney';
+  else if(/universal|islands of adventure|epic universe|seaworld|busch|aquatica/i.test(todo)) modo = 'disney';
+  else if(/caribe|cancun|cancún|playa|beach|resort/i.test(destStr))                modo = 'playa';
+  else if(/europa|paris|madrid|roma|ciudad|city|london|amsterdam/i.test(destStr))  modo = 'ciudad';
+
+  var modoEl = document.getElementById('cfg-modo');
+  if(modoEl){ modoEl.value = modo; onModoChange(); }
+
+  // ── 3. Marcar parques según tickets del presupuesto ───────
+  if(modo === 'disney' && tks.length){
+    // Desmarcar todos primero
+    var allPks = document.querySelectorAll('#parques-grid input[type=checkbox]');
+    allPks.forEach(function(pk){ pk.checked = false; });
+
+    // Mapa ticket → checkbox value
+    var parqueMap = {
+      'magic kingdom':       'Magic Kingdom',
+      'epcot':               'EPCOT',
+      'hollywood studios':   'Hollywood Studios',
+      'animal kingdom':      'Animal Kingdom',
+      'universal studios':   'Universal Studios',
+      'islands of adventure':'Islands of Adventure',
+      'epic universe':       'Islands of Adventure',
+      'seaworld':            'Disney Springs',      // no tiene checkbox propio, dejar springs
+      'blizzard beach':      'Blizzard Beach',
+      'disney springs':      'Disney Springs',
+      'water parks':         'Blizzard Beach',
+    };
+
+    var parquesActivados = new Set();
+    tks.forEach(function(t){
+      var lower = ((t.parque||'')+(t.desc||'')).toLowerCase();
+      Object.keys(parqueMap).forEach(function(key){
+        if(lower.indexOf(key)>-1) parquesActivados.add(parqueMap[key]);
+      });
+    });
+
+    // Si no detectamos nada específico, activar los 4 Disney principales
+    if(!parquesActivados.size){
+      ['Magic Kingdom','EPCOT','Hollywood Studios','Animal Kingdom'].forEach(function(p){ parquesActivados.add(p); });
+    }
+
+    // Marcar los checkboxes correspondientes
+    allPks.forEach(function(pk){
+      if(parquesActivados.has(pk.value)) pk.checked = true;
+    });
+
+    // Calcular días de parque disponibles según cant de tickets
+    // Si hay tickets con cant numérica, usar eso para definir descanso
+    var cantTickets = tks.reduce(function(s,t){ return s + (parseInt(t.cant)||1); }, 0);
+    var noches = d.noches ? parseInt(d.noches) : 0;
+    if(noches && cantTickets){
+      var ratio = noches / cantTickets;
+      var descansoEl = document.getElementById('cfg-descanso-cada');
+      if(descansoEl){
+        if(ratio >= 1.8) descansoEl.value = '2';
+        else descansoEl.value = '3';
+      }
+    }
+  }
+
+  // ── 4. Crucero: configurar modo ───────────────────────────
+  if(cru){
+    document.getElementById('cfg-disney-wrap').style.display = 'none';
+  }
+
+  // ── 5. Hoteles con fechas individuales ────────────────────
+  var hotelList = document.getElementById('hoteles-config-list');
+  if(hotelList){ hotelList.innerHTML = ''; hotelesConfig = []; hotelConfigCount = 0; }
+
+  if(aloj.length){
+    aloj.forEach(function(h){
+      var hci = h.checkin  || fi || '';
+      var hco = h.checkout || fo || '';
+      addHotelConfig(h.nombre || '', hci, hco);
+    });
+  } else {
+    // Sin alojamiento cargado: agregar uno genérico con fechas del viaje
+    addHotelConfig('', fi, fo);
+  }
+
+  // ── 6. Reglas automáticas según contenido ────────────────
+  // Si hay vuelo en el presupuesto, activar regla de llegada y salida
+  if(v){
+    document.getElementById('regla-llegada').classList.add('on');
+    document.getElementById('regla-salida').classList.add('on');
+  }
+  // Si hay crucero
+  if(cru){
+    document.getElementById('regla-llegada').classList.add('on');
+    document.getElementById('regla-salida').classList.add('on');
+    document.getElementById('regla-descanso').classList.remove('on');
+  }
+  // Agua / shopping según tickets
+  if(tksStr.indexOf('water park')>-1 || tksStr.indexOf('blizzard')>-1 || tksStr.indexOf('aquatica')>-1){
+    document.getElementById('regla-agua').classList.add('on');
+  }
+  if(tksStr.indexOf('springs')>-1 || tksStr.indexOf('shopping')>-1){
+    document.getElementById('regla-shopping').classList.add('on');
+  }
+
+  // ── 7. Guardar referencia completa PRIMERO ───────────────
+  window._budgetRef = b;
+
+  // ── 8. Llenar campos del DOM explícitamente (por si sv() falló) ──
+  var setVal = function(id, val){
+    var el = document.getElementById(id);
+    if(el && val) el.value = val;
+  };
+  setVal('cfg-nombre',   c.nombre  || '');
+  setVal('cfg-destino',  d.nombre  || '');
+  setVal('cfg-fecha-in', fi);
+  setVal('cfg-fecha-out', fo);
+  setVal('cfg-adultos',  c.adultos || '2');
+  setVal('cfg-menores',  c.menores || '0');
+  setVal('cfg-numero',   m.numero  || '');
+
+  // ── 9. Actualizar resumen visual ─────────────────────────
+  updateSummary();
+
+  // Mostrar card de resumen del presupuesto
+  var bcard = document.getElementById('budget-summary-card');
+  var bbody = document.getElementById('budget-summary-body');
+  if(bcard && bbody){
+    var lines = [];
+    if(aloj.length){
+      aloj.forEach(function(h){
+        var ci = h.checkin ? ' · Check-in: '+h.checkin : '';
+        var co = h.checkout ? ' → '+h.checkout : '';
+        lines.push('🏨 <strong>'+h.nombre+'</strong>'+ci+co);
+      });
+    }
+    if(tks.length){
+      tks.forEach(function(t){
+        var pq = (t.parque && t.parque!=='Otro') ? t.parque : t.desc;
+        lines.push('🎟️ '+(t.cant>1?t.cant+'× ':'')+pq);
+      });
+    }
+    if(v){ lines.push('✈️ '+(v.aerolinea||'')+' · '+(v.origen||'')+' → '+(v.destino||'')); }
+    if(cru){ lines.push('🚢 '+(cru.linea||'')+' — '+(cru.itinerario||'')); }
+    if(b.seguro){ lines.push('🛡️ Seguro: '+(b.seguro.compania||'')+' '+(b.seguro.plan||'')); }
+    if(b.comidas){ lines.push('🍽️ '+(b.comidas.plan||'')); }
+    bbody.innerHTML = lines.join('<br>') || 'Presupuesto cargado correctamente.';
+    bcard.style.display = 'block';
+  }
+
+  // ── 10. Generar itinerario automáticamente ────────────────
+  if(fi && fo){
+    setTimeout(function(){
+      regenerarTodo();
+      showToast('✓ Itinerario generado desde presupuesto');
+    }, 500);
+  }
+
+  return true;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  INIT — al final para que todas las funciones estén definidas
+// ═══════════════════════════════════════════════════════════
+(function init(){
+  document.getElementById('cfg-numero').value = 'MM-' + Date.now().toString().slice(-6);
+
+  // Cerrar popup al click fuera
+  document.addEventListener('click', function(e){
+    var pp = document.getElementById('tipo-popup');
+    if(!pp.contains(e.target) && !e.target.classList.contains('act-tipo-btn')){
+      pp.classList.remove('open');
+      currentTipoTarget = null;
+    }
+  });
+
+  // Intentar cargar desde presupuesto (?budget= param)
+  var cargadoDesdeBudget = loadFromBudget();
+
+  if(!cargadoDesdeBudget){
+    // Sin datos de presupuesto: agregar hotel por defecto y mostrar vacío
+    addHotelConfig("Disney's All-Star Sports Resort", '', '');
+  }
+})();
+
+</script>
+</body>
+</html>
